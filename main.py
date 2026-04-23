@@ -8,6 +8,7 @@ from core.stt import STT
 from core.tts import TTS
 from core.wake import WakeWord
 from core.router import Router
+from core.module_base import ModuleResponse
 from utils.colors import CYAN, GREEN, RESET
 from utils.logging import technical_log
 
@@ -102,14 +103,49 @@ async def main():
             module_response = await router.route(user_input, context)
             
             if module_response:
-                print(f"{CYAN}neo > {module_response}{RESET}\n")
-                tts.speak(module_response)
+                if isinstance(module_response, str):
+                    print(f"{CYAN}neo > {module_response}{RESET}\n")
+                    tts.speak(module_response)
+                    
+                    while tts.is_speaking():
+                        await asyncio.sleep(0.05)
+                    
+                    print()
+                    continue
                 
-                while tts.is_speaking():
-                    await asyncio.sleep(0.05)
-                
-                print()
-                continue
+                elif isinstance(module_response, ModuleResponse):
+                    import json
+                    
+                    data_json = json.dumps(module_response.content, indent=2, ensure_ascii=False)
+                    
+                    enriched_prompt = f"""L'utilisateur a demandé : "{user_input}"
+
+Voici les données récupérées :
+{data_json}
+
+Métadonnées : {module_response.metadata}
+
+Réponds à l'utilisateur de manière naturelle et conversationnelle en français, en utilisant ces données."""
+                    
+                    print(f"{CYAN}neo > ", end="", flush=True)
+                    buffer = ""
+                    
+                    async for chunk in neo_brain.think(enriched_prompt):
+                        print(f"{CYAN}{chunk}{RESET}", end="", flush=True)
+                        buffer += chunk
+                        
+                        sentence, buffer = extract_sentence(buffer)
+                        if sentence and len(sentence) > 5:
+                            tts.speak(sentence)
+                    
+                    if buffer.strip():
+                        tts.speak(buffer.strip())
+                    
+                    while tts.is_speaking():
+                        await asyncio.sleep(0.05)
+                    
+                    print()
+                    continue
             
             print(f"{CYAN}neo > ", end="", flush=True)
 

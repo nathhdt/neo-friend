@@ -2,7 +2,7 @@ import re
 import unicodedata
 import importlib
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from core.module_base import ModuleBase
 from utils.logging import technical_log
 
@@ -84,13 +84,17 @@ class Router:
         normalized = self._normalize(text)
         return bool(self.goodbye_regex.search(normalized))
     
-    async def route(self, user_input: str, context: Dict[str, Any]) -> Optional[str]:
+    async def route(self, user_input: str, context: Dict[str, Any]) -> Optional[Union[str, 'ModuleResponse']]:
         """
         Route la requête vers le bon module
         
         Returns:
-            Réponse du module ou None si aucun module ne gère
+            - str: Réponse directe
+            - ModuleResponse: Données pour le LLM
+            - None: Aucun module ne gère
         """
+        from core.module_base import ModuleResponse
+        
         normalized = self._normalize(user_input)
         
         for module in self.modules:

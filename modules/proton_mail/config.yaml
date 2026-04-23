@@ -1,0 +1,6 @@
+proton_bridge:
+  host: 127.0.0.1
+  imap_port: 1143
+  smtp_port: 1025
+  username: mail@proton.me
+  password: key
