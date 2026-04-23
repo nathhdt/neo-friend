@@ -15,16 +15,22 @@ class WakeWord:
 
         download_models()
 
-        self.model = Model(
-            wakeword_models=[wake_cfg.get("model", "hey_jarvis")],
-            inference_framework="onnx"
-        )
-
+        self.model_name = wake_cfg.get("model", "hey_jarvis")
         self.samplerate = wake_cfg.get("samplerate", 16000)
         self.chunk_size = wake_cfg.get("chunk_size", 1280)
         self.threshold = wake_cfg.get("threshold", 0.5)
+        
+        self.model = Model(
+            wakeword_models=[self.model_name],
+            inference_framework="onnx"
+        )
 
     def listen(self):
+        self.model = Model(
+            wakeword_models=[self.model_name],
+            inference_framework="onnx"
+        )
+        
         detected = False
         stream = None
         frame_count = 0
@@ -45,7 +51,6 @@ class WakeWord:
 
             frame_count += 1
 
-            # ✅ LOG : Affiche les scores tous les 20 frames
             for key, score in prediction.items():
                 if score > max_score_seen:
                     max_score_seen = score

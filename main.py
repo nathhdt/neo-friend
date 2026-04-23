@@ -1,7 +1,6 @@
 import asyncio
 import subprocess
 import re
-import time
 
 from core.llm import LLM
 from core.stt import STT
@@ -58,9 +57,9 @@ async def main():
                 while tts.is_speaking():
                     await asyncio.sleep(0.05)
                 
-                conversation_active = False  # ← Retour en mode wake word
+                conversation_active = False
                 technical_log("wake", "conversation ended, returning to wake word mode")
-                time.sleep(2.0)
+                await asyncio.sleep(2.0)
                 continue
 
             print(f"{CYAN}neo > ", end="", flush=True)
