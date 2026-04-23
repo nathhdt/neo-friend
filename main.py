@@ -1,6 +1,5 @@
 import asyncio
 import subprocess
-import re
 import yaml
 
 from core.llm import LLM
@@ -11,15 +10,7 @@ from core.router import Router
 from core.module_base import ModuleResponse
 from utils.colors import CYAN, GREEN, RESET
 from utils.logging import technical_log
-
-
-def extract_sentence(buffer: str):
-    match = re.search(r'(.+?[.!?])(\s|$)', buffer)
-    if match:
-        sentence = match.group(1).strip()
-        rest = buffer[match.end():]
-        return sentence, rest
-    return None, buffer
+from utils.text import extract_sentence, speak_text
 
 
 async def main():
@@ -105,7 +96,8 @@ async def main():
             if module_response:
                 if isinstance(module_response, str):
                     print(f"{CYAN}neo > {module_response}{RESET}\n")
-                    tts.speak(module_response)
+                    
+                    speak_text(module_response, tts)
                     
                     while tts.is_speaking():
                         await asyncio.sleep(0.05)
@@ -120,12 +112,14 @@ async def main():
                     
                     enriched_prompt = f"""L'utilisateur a demandé : "{user_input}"
 
-Voici les données récupérées :
-{data_json}
+                Voici les données récupérées :
+                {data_json}
 
-Métadonnées : {module_response.metadata}
+                Métadonnées : {module_response.metadata}
 
-Réponds à l'utilisateur de manière naturelle et conversationnelle en français, en utilisant ces données."""
+                {module_response.instructions}
+
+                Réponds à l'utilisateur de manière naturelle et conversationnelle en français."""
                     
                     print(f"{CYAN}neo > ", end="", flush=True)
                     buffer = ""
