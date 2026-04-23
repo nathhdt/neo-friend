@@ -35,14 +35,19 @@ async def main():
     with open("config.yaml", "r") as f:
         config = yaml.safe_load(f)
         INACTIVITY_TIMEOUT = config.get("conversation", {}).get("inactivity_timeout", 30.0)
+        WAKE_ENABLED = config.get("wake", {}).get("enabled", True)
 
     while True:
         try:
             if not conversation_active:
-                technical_log("wake", "waiting for wake word...")
-                wake.listen()
+                if WAKE_ENABLED:
+                    technical_log("wake", "waiting for wake word...")
+                    wake.listen()
+                    technical_log("wake", "wake word detected, conversation active")
+                else:
+                    technical_log("wake", "wake word disabled, conversation always active")
+                
                 conversation_active = True
-                technical_log("wake", "wake word detected, conversation active")
 
             print(f"\n{GREEN}you > ", end="", flush=True)
             

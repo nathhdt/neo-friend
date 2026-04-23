@@ -6,14 +6,12 @@ from utils.logging import technical_log
 
 class LLM:
     def __init__(self):
-        # load config
         with open("config.yaml", "r") as f:
             config = yaml.safe_load(f)
 
         self.model_path = config["llm"]["model"]
         self.system_prompt = config["llm"]["system_prompt"]
-
-        # load model
+        
         self.model_path = "models/mistral-small-v3"
         technical_log("llm", "loading llm model...")
         self.model, self.tokenizer = load(self.model_path, tokenizer_config={"fix_mistral_regex": True})

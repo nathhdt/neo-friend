@@ -7,6 +7,7 @@ llm:
     You ONLY speak in french.
 
 wake:
+  enabled: false
   model: "hey_jarvis"
   samplerate: 16000
   chunk_size: 1280

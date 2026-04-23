@@ -12,19 +12,25 @@ class WakeWord:
 
         wake_cfg = config["wake"]
 
-        download_models()
-
-        self.model_name = wake_cfg.get("model", "hey_jarvis")
-        self.samplerate = wake_cfg.get("samplerate", 16000)
-        self.chunk_size = wake_cfg.get("chunk_size", 1280)
-        self.threshold = wake_cfg.get("threshold", 0.5)
+        self.enabled = wake_cfg.get("enabled", True)
         
-        self.model = Model(
-            wakeword_models=[self.model_name],
-            inference_framework="onnx"
-        )
+        if self.enabled:
+            download_models()
+            
+            self.model_name = wake_cfg.get("model", "hey_jarvis")
+            self.samplerate = wake_cfg.get("samplerate", 16000)
+            self.chunk_size = wake_cfg.get("chunk_size", 1280)
+            self.threshold = wake_cfg.get("threshold", 0.5)
+            
+            self.model = Model(
+                wakeword_models=[self.model_name],
+                inference_framework="onnx"
+            )
 
     def listen(self):
+        if not self.enabled:
+            return True
+        
         self.model = Model(
             wakeword_models=[self.model_name],
             inference_framework="onnx"
