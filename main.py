@@ -1,11 +1,13 @@
 import asyncio
 import subprocess
 import re
+import time
 
 from core.llm import LLM
 from core.stt import STT
 from core.tts import TTS
 from core.wake import WakeWord
+from core.router import Router
 from utils.colors import CYAN, GREEN, RESET
 from utils.logging import technical_log
 
@@ -26,11 +28,17 @@ async def main():
     stt = STT()
     tts = TTS()
     wake = WakeWord()
+    router = Router()
+
+    conversation_active = False
 
     while True:
         try:
-            technical_log("wake", "waiting for wake word...")
-            wake.listen()
+            if not conversation_active:
+                technical_log("wake", "waiting for wake word...")
+                wake.listen()
+                conversation_active = True
+                technical_log("wake", "wake word detected, conversation active")
 
             print(f"\n{GREEN}you > ", end="", flush=True)
             user_input = stt.listen()
@@ -38,9 +46,22 @@ async def main():
 
             if not user_input:
                 continue
-
+            
             if user_input.lower() in ["exit", "quit", "stop"]:
                 break
+            
+            if router.detect_goodbye(user_input):
+                goodbye_msg = router.get_goodbye_response()
+                print(f"{CYAN}neo > {goodbye_msg}{RESET}\n")
+                tts.speak(goodbye_msg)
+                
+                while tts.is_speaking():
+                    await asyncio.sleep(0.05)
+                
+                conversation_active = False  # ← Retour en mode wake word
+                technical_log("wake", "conversation ended, returning to wake word mode")
+                time.sleep(2.0)
+                continue
 
             print(f"{CYAN}neo > ", end="", flush=True)
 

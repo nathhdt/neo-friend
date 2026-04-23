@@ -3,6 +3,7 @@ import sounddevice as sd
 import yaml
 from openwakeword.model import Model
 from openwakeword.utils import download_models
+from utils.logging import technical_log
 
 
 class WakeWord:
@@ -25,10 +26,15 @@ class WakeWord:
 
     def listen(self):
         detected = False
+        stream = None
         frame_count = 0
+        max_score_seen = 0.0
 
         def callback(indata, frames, time, status):
-            nonlocal detected, frame_count
+            nonlocal detected, frame_count, max_score_seen
+
+            if detected:
+                return
 
             audio_int16 = np.frombuffer(
                 (indata[:, 0] * 32767).astype(np.int16).tobytes(),
@@ -39,18 +45,35 @@ class WakeWord:
 
             frame_count += 1
 
-            for _, score in prediction.items():
+            # ✅ LOG : Affiche les scores tous les 20 frames
+            for key, score in prediction.items():
+                if score > max_score_seen:
+                    max_score_seen = score
+                
+                if frame_count % 20 == 0:
+                    technical_log("wake", f"frame {frame_count} | {key}: {score:.4f} (max: {max_score_seen:.4f}, threshold: {self.threshold})")
+                
                 if score > self.threshold:
+                    technical_log("wake", f"DETECTION! {key}: {score:.4f} > {self.threshold}")
                     detected = True
+                    break
 
-        with sd.InputStream(
+        stream = sd.InputStream(
             samplerate=self.samplerate,
             channels=1,
             blocksize=self.chunk_size,
             callback=callback,
             dtype='float32'
-        ):
+        )
+
+        stream.start()
+
+        try:
             while not detected:
                 sd.sleep(100)
+        finally:
+            stream.stop()
+            stream.close()
+            sd.sleep(200)
 
         return True
