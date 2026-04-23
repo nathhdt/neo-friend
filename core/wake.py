@@ -3,7 +3,6 @@ import sounddevice as sd
 import yaml
 from openwakeword.model import Model
 from openwakeword.utils import download_models
-from utils.logging import technical_log
 
 
 class WakeWord:
@@ -55,11 +54,7 @@ class WakeWord:
                 if score > max_score_seen:
                     max_score_seen = score
                 
-                if frame_count % 20 == 0:
-                    technical_log("wake", f"frame {frame_count} | {key}: {score:.4f} (max: {max_score_seen:.4f}, threshold: {self.threshold})")
-                
                 if score > self.threshold:
-                    technical_log("wake", f"DETECTION! {key}: {score:.4f} > {self.threshold}")
                     detected = True
                     break
 

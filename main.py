@@ -1,6 +1,7 @@
 import asyncio
 import subprocess
 import re
+import yaml
 
 from core.llm import LLM
 from core.stt import STT
@@ -31,6 +32,10 @@ async def main():
 
     conversation_active = False
 
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+        INACTIVITY_TIMEOUT = config.get("conversation", {}).get("inactivity_timeout", 30.0)
+
     while True:
         try:
             if not conversation_active:
@@ -40,7 +45,27 @@ async def main():
                 technical_log("wake", "wake word detected, conversation active")
 
             print(f"\n{GREEN}you > ", end="", flush=True)
-            user_input = stt.listen()
+            
+            async def listen_with_timeout():
+                try:
+                    return await asyncio.wait_for(
+                        asyncio.to_thread(stt.listen),
+                        timeout=INACTIVITY_TIMEOUT
+                    )
+                except asyncio.TimeoutError:
+                    stt.stop_listening()
+                    await asyncio.sleep(0.5)
+                    raise
+            
+            try:
+                user_input = await listen_with_timeout()
+            except asyncio.TimeoutError:
+                print("\n")
+                technical_log("wake", "inactivity timeout, returning to wake word mode")
+                conversation_active = False
+                await asyncio.sleep(0.5)
+                continue
+            
             print(f"{GREEN}{user_input}{RESET}\n")
 
             if not user_input:

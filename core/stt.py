@@ -25,6 +25,8 @@ class STT:
         self.vad = SileroVAD()
         self.frame_size = vad_cfg.get("frame_size", 512)
         self.silence_threshold = vad_cfg.get("silence_threshold", 40)
+        
+        self.should_stop = False
 
         technical_log("stt", "loading model...")
 
@@ -49,13 +51,21 @@ class STT:
             )
         return result["text"].strip()
 
+    def stop_listening(self):
+        """Arrête l'écoute en cours"""
+        self.should_stop = True
+
     def listen(self):
+        self.should_stop = False
         buffer = []
         recording = False
         silence_count = 0
 
         def callback(indata, frames, time, status):
             nonlocal buffer, recording, silence_count
+
+            if self.should_stop:
+                return
 
             audio = indata[:, 0]
 
@@ -78,8 +88,11 @@ class STT:
                 callback=callback
             ):
                 while True:
+                    if self.should_stop:
+                        break
                     if recording and silence_count >= self.silence_threshold:
                         break
+                    sd.sleep(100)
 
         except KeyboardInterrupt:
             sd.stop()

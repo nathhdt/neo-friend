@@ -1,17 +1,14 @@
 import re
+import unicodedata
 
 
 class Router:
     """Détecte les intentions avant d'appeler le LLM"""
     
     GOODBYE_PATTERNS = [
-        r'\b(au revoir|à plus|à\+|salut|ciao|bye|a plus tard|bonne (journée|soirée|nuit))\b',
-        r'\b(on se voit|on se parle|à bientôt|à tout à l\'heure)\b',
-        r'\b(merci ça (sera tout|suffit)|c\'est bon|c\'est tout)\b',
-    ]
-    
-    GOODBYE_RESPONSES = [
-        "Ok.",
+        r'\b(au revoir|a plus|salut|ciao|bye|a plus tard|bonne (journee|soiree|nuit))\b',
+        r'\b(on se voit|on se parle|a bientot|a tout a l\'heure)\b',
+        r'\b(merci ca (sera tout|suffit)|c\'est bon|c\'est tout)\b',
     ]
     
     def __init__(self):
@@ -20,11 +17,20 @@ class Router:
             re.IGNORECASE
         )
     
+    def _normalize(self, text: str) -> str:
+        """Normalise le texte : minuscules + retire accents"""
+        text = text.lower()
+        
+        text = unicodedata.normalize('NFD', text)
+        text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+        
+        return text
+    
     def detect_goodbye(self, text: str) -> bool:
         """Retourne True si l'user dit au revoir"""
-        return bool(self.goodbye_regex.search(text))
+        normalized = self._normalize(text)
+        return bool(self.goodbye_regex.search(normalized))
     
     def get_goodbye_response(self) -> str:
         """Retourne une réponse d'au revoir aléatoire"""
-        import random
-        return random.choice(self.GOODBYE_RESPONSES)
+        return "Ok."
