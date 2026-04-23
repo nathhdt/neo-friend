@@ -1,0 +1,11 @@
+mlx
+mlx-lm
+mlx-whisper
+numpy
+openwakeword
+onnxruntime
+pyyaml
+silero-vad>=5.0.0
+sounddevice
+soundfile
+torch>=2.0.0

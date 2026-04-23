@@ -1,0 +1,20 @@
+llm:
+  model: mistral-small-v3
+  system_prompt: |
+    You are Neo, a personal AI assistant.
+    You are concise, helpful, and natural.
+    You help the user organize tasks and answer clearly.
+    You ONLY speak in french.
+
+stt:
+  model: whisper-large-v3-turbo
+  samplerate: 16000
+
+vad:
+  frame_size: 512
+  threshold: 0.4
+  silence_threshold: 40
+
+tts:
+  voice: "Audrey (Premium)"
+  rate: 220

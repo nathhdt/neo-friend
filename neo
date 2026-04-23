@@ -1,0 +1,3 @@
+#!/bin/bash
+export PYTHONPATH=$PYTHONPATH:$(pwd)
+$(pwd)/venv/bin/python $(pwd)/main.py "$@"
