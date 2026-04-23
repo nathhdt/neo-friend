@@ -91,7 +91,26 @@ async def main():
                 technical_log("wake", "conversation ended, returning to wake word mode")
                 await asyncio.sleep(2.0)
                 continue
-
+            
+            context = {
+                'tts': tts,
+                'stt': stt,
+                'config': config,
+                'llm': neo_brain
+            }
+            
+            module_response = await router.route(user_input, context)
+            
+            if module_response:
+                print(f"{CYAN}neo > {module_response}{RESET}\n")
+                tts.speak(module_response)
+                
+                while tts.is_speaking():
+                    await asyncio.sleep(0.05)
+                
+                print()
+                continue
+            
             print(f"{CYAN}neo > ", end="", flush=True)
 
             buffer = ""
