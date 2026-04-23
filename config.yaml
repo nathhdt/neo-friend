@@ -24,8 +24,3 @@ vad:
 tts:
   voice: "Audrey (Premium)"
   rate: 220
-
-backchannel:
-  enabled: true
-  filler_text: "Un instant."
-  filler_after_s: 1.0
