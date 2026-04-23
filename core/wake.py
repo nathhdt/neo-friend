@@ -1,62 +1,56 @@
 import numpy as np
 import sounddevice as sd
+import yaml
 from openwakeword.model import Model
 from openwakeword.utils import download_models
 
 
 class WakeWord:
     def __init__(self):
+        with open("config.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        wake_cfg = config["wake"]
+
         download_models()
 
         self.model = Model(
-            wakeword_models=["alexa"],  # ou hey_jarvis
+            wakeword_models=[wake_cfg.get("model", "hey_jarvis")],
             inference_framework="onnx"
         )
 
-        self.samplerate = 16000
-        self.frame_size = 512
-        self.threshold = 0.3
-
-        self._frame_count = 0
+        self.samplerate = wake_cfg.get("samplerate", 16000)
+        self.chunk_size = wake_cfg.get("chunk_size", 1280)
+        self.threshold = wake_cfg.get("threshold", 0.5)
 
     def listen(self):
         detected = False
+        frame_count = 0
 
         def callback(indata, frames, time, status):
-            nonlocal detected
+            nonlocal detected, frame_count
 
-            audio = indata[:, 0]
+            audio_int16 = np.frombuffer(
+                (indata[:, 0] * 32767).astype(np.int16).tobytes(),
+                dtype=np.int16
+            )
 
-            if len(audio) != self.frame_size:
-                return
+            prediction = self.model.predict(audio_int16)
 
-            audio = audio.astype(np.float32)
+            frame_count += 1
 
-            # normalisation légère (PAS RMS agressif)
-            max_val = np.max(np.abs(audio))
-            if max_val > 0:
-                audio = audio / max_val
-
-            # 🔥 IMPORTANT : on envoie DIRECT le frame
-            prediction = self.model.predict(audio)
-
-            # debug utile (pas spam)
-            self._frame_count += 1
-            if self._frame_count % 10 == 0:
-                print({k: float(v) for k, v in prediction.items()})
-
-            for key, score in prediction.items():
+            for _, score in prediction.items():
                 if score > self.threshold:
-                    print(f"[wake] DETECTED {key} ({score:.2f})")
                     detected = True
 
         with sd.InputStream(
             samplerate=self.samplerate,
             channels=1,
-            blocksize=self.frame_size,
-            callback=callback
+            blocksize=self.chunk_size,
+            callback=callback,
+            dtype='float32'
         ):
             while not detected:
-                pass
+                sd.sleep(100)
 
         return True

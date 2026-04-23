@@ -1,12 +1,14 @@
 import asyncio
 import subprocess
 import re
+import yaml
 
 from core.llm import LLM
 from core.stt import STT
 from core.tts import TTS
 from core.wake import WakeWord
 from utils.colors import CYAN, GREEN, RESET
+from utils.logging import technical_log
 
 
 def extract_sentence(buffer: str):
@@ -21,6 +23,11 @@ def extract_sentence(buffer: str):
 async def main():
     subprocess.run(["clear"])
 
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+
+    back_cfg = config.get("backchannel", {})
+
     neo_brain = LLM()
     stt = STT()
     tts = TTS()
@@ -28,7 +35,7 @@ async def main():
 
     while True:
         try:
-            print("\nwaiting for wake word...")
+            technical_log("wake", "waiting for wake word...")
             wake.listen()
 
             print(f"\n{GREEN}you > ", end="", flush=True)
@@ -44,6 +51,14 @@ async def main():
             print(f"{CYAN}neo > ", end="", flush=True)
 
             buffer = ""
+            first_sentence_spoken = False
+
+            async def backchannel_task():
+                await asyncio.sleep(back_cfg.get("filler_after_s", 2.0))
+                if not first_sentence_spoken and back_cfg.get("enabled", False):
+                    tts.speak(back_cfg.get("filler_text", "Un instant."))
+
+            task = asyncio.create_task(backchannel_task())
 
             async for chunk in neo_brain.think(user_input):
                 print(f"{CYAN}{chunk}{RESET}", end="", flush=True)
@@ -52,7 +67,15 @@ async def main():
                 sentence, buffer = extract_sentence(buffer)
 
                 if sentence and len(sentence) > 5:
+                    if not first_sentence_spoken:
+                        first_sentence_spoken = True
+                        if not task.done():
+                            task.cancel()
+
                     tts.speak(sentence)
+
+            if not task.done():
+                task.cancel()
 
             if buffer.strip():
                 tts.speak(buffer.strip())
