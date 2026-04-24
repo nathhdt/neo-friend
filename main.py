@@ -61,8 +61,7 @@ class Neo:
         
         if await self.conversation.handle_goodbye(user_input):
             return True
-
-        print(f"{CYAN}neo > ", end="", flush=True)
+        
         response = await self.conversation.process_input(user_input)
         self.conversation.add_turn(user_input, response)
         

@@ -102,6 +102,7 @@ class ConversationManager:
             Réponse de l'assistant
         """
         from core.module_base import ModuleResponse
+        from utils.text import speak_text
         import json
         
         context = {
@@ -114,6 +115,14 @@ class ConversationManager:
         
         if module_response:
             if isinstance(module_response, str):
+                # Imprimer ET parler la réponse (conversation.py gère "neo >" maintenant)
+                from utils.colors import CYAN, RESET
+                print(f"{CYAN}neo > {module_response}{RESET}")
+                speak_text(module_response, self.tts)
+                
+                # ATTENDRE que le TTS finisse AVANT de retourner
+                await self.wait_for_tts()
+                
                 return module_response
             
             elif isinstance(module_response, ModuleResponse):
@@ -130,6 +139,10 @@ Métadonnées : {module_response.metadata}
 
 Réponds à l'utilisateur de manière naturelle et conversationnelle en français."""
                 
+                # Imprimer "neo > " avant de streamer
+                from utils.colors import CYAN, RESET
+                print(f"{CYAN}neo > ", end="", flush=True)
+                
                 from utils.text import stream_llm_to_tts
                 response = await stream_llm_to_tts(
                     self.llm.think(enriched_prompt, history=self.history),
@@ -137,6 +150,10 @@ Réponds à l'utilisateur de manière naturelle et conversationnelle en françai
                 )
                 return response
             
+        # Pas de module, LLM direct
+        from utils.colors import CYAN, RESET
+        print(f"{CYAN}neo > ", end="", flush=True)
+        
         from utils.text import stream_llm_to_tts
         response = await stream_llm_to_tts(
             self.llm.think(user_input, history=self.history),
