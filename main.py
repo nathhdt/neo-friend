@@ -10,7 +10,7 @@ from core.router import Router
 from core.module_base import ModuleResponse
 from utils.colors import CYAN, GREEN, RESET
 from utils.logging import technical_log
-from utils.text import extract_sentence, speak_text
+from utils.text import speak_text, stream_llm_to_tts
 
 
 async def main():
@@ -96,7 +96,6 @@ async def main():
             if module_response:
                 if isinstance(module_response, str):
                     print(f"{CYAN}neo > {module_response}{RESET}\n")
-                    
                     speak_text(module_response, tts)
                     
                     while tts.is_speaking():
@@ -112,28 +111,18 @@ async def main():
                     
                     enriched_prompt = f"""L'utilisateur a demandé : "{user_input}"
 
-                Voici les données récupérées :
-                {data_json}
+Voici les données récupérées :
+{data_json}
 
-                Métadonnées : {module_response.metadata}
+Métadonnées : {module_response.metadata}
 
-                {module_response.instructions}
+{module_response.instructions}
 
-                Réponds à l'utilisateur de manière naturelle et conversationnelle en français."""
+Réponds à l'utilisateur de manière naturelle et conversationnelle en français."""
                     
                     print(f"{CYAN}neo > ", end="", flush=True)
-                    buffer = ""
                     
-                    async for chunk in neo_brain.think(enriched_prompt):
-                        print(f"{CYAN}{chunk}{RESET}", end="", flush=True)
-                        buffer += chunk
-                        
-                        sentence, buffer = extract_sentence(buffer)
-                        if sentence and len(sentence) > 5:
-                            tts.speak(sentence)
-                    
-                    if buffer.strip():
-                        tts.speak(buffer.strip())
+                    await stream_llm_to_tts(neo_brain.think(enriched_prompt), tts)
                     
                     while tts.is_speaking():
                         await asyncio.sleep(0.05)
@@ -142,20 +131,8 @@ async def main():
                     continue
             
             print(f"{CYAN}neo > ", end="", flush=True)
-
-            buffer = ""
-
-            async for chunk in neo_brain.think(user_input):
-                print(f"{CYAN}{chunk}{RESET}", end="", flush=True)
-                buffer += chunk
-
-                sentence, buffer = extract_sentence(buffer)
-
-                if sentence and len(sentence) > 5:
-                    tts.speak(sentence)
-
-            if buffer.strip():
-                tts.speak(buffer.strip())
+            
+            await stream_llm_to_tts(neo_brain.think(user_input), tts)
 
             while tts.is_speaking():
                 await asyncio.sleep(0.05)
