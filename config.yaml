@@ -25,7 +25,7 @@ vad:
 
 tts:
   voice: "Audrey (Premium)"
-  rate: 220
+  rate: 250
 
 conversation:
   inactivity_timeout: 30

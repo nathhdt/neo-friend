@@ -98,7 +98,7 @@ class Neo:
                     break
             
             except KeyboardInterrupt:
-                print("\nStopping...")
+                print(f"\n{CYAN}stopping...")
                 self.tts.stop()
                 break
     

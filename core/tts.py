@@ -2,16 +2,16 @@ import yaml
 import subprocess
 import threading
 import queue
+from core.config_manager import ConfigManager
 from utils.logging import technical_log
 
 
 class TTS:
     def __init__(self):
-        with open("config.yaml", "r") as f:
-            config = yaml.safe_load(f)
+        config = ConfigManager()
 
-        self.voice = config["tts"].get("voice", "Amelie")
-        self.rate = str(config["tts"].get("rate", 180))
+        self.voice = config.get("tts", "voice")
+        self.rate = config.get("tts", "rate")
 
         self.queue = queue.Queue()
         self.process = None
@@ -37,7 +37,7 @@ class TTS:
                         [
                             "say",
                             "-v", self.voice,
-                            "-r", self.rate,
+                            "-r", str(self.rate),
                             text
                         ],
                         stdout=subprocess.DEVNULL,

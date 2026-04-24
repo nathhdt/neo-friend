@@ -59,7 +59,6 @@ class Router:
                         instance.on_load()
                         self.modules.append(instance)
                         
-                        technical_log("router", f"loaded module: {module_dir.name}")
                         break
             
             except Exception as e:

@@ -6,19 +6,19 @@ import numpy as np
 import tempfile
 from pathlib import Path
 from utils.logging import technical_log
+from core.config_manager import ConfigManager
 from core.vad import SileroVAD
 
 
 class STT:
     def __init__(self):
-        with open("config.yaml", "r") as f:
-            config = yaml.safe_load(f)
+        config = ConfigManager()
 
-        stt_cfg = config["stt"]
-        vad_cfg = config["vad"]
+        stt_cfg = config.get("stt")
+        vad_cfg = config.get("vad")
 
         self.model_name = stt_cfg["model"]
-        self.model_ref = Path(f"models/{self.model_name}")
+        self.model_path = Path(f"models/{self.model_name}")
 
         self.samplerate = stt_cfg.get("samplerate", 16000)
 
@@ -28,14 +28,14 @@ class STT:
         
         self.should_stop = False
 
-        technical_log("stt", "loading model...")
+        technical_log("stt", f"loading model: {self.model_path}")
 
         try:
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
                 sf.write(tmp.name, np.zeros(self.samplerate), self.samplerate)
                 mlx_whisper.transcribe(
                     tmp.name,
-                    path_or_hf_repo=self.model_ref
+                    path_or_hf_repo=self.model_path
                 )
         except Exception:
             pass
@@ -47,7 +47,7 @@ class STT:
             sf.write(tmp.name, audio, self.samplerate)
             result = mlx_whisper.transcribe(
                 tmp.name,
-                path_or_hf_repo=self.model_ref
+                path_or_hf_repo=self.model_path
             )
         return result["text"].strip()
 

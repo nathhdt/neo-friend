@@ -3,12 +3,16 @@ Module de gestion des messages d'adieu.
 Déplace cette logique hors du Router.
 """
 from core.module_base import ModuleBase
+from utils.logging import technical_log
 from typing import Dict, Any, Optional
 import random
 
 
 class GoodbyeModule(ModuleBase):
     """Gère les messages d'adieu de l'utilisateur"""
+
+    def on_load(self):
+        technical_log("goodbye-neo", "module loaded")
     
     def get_patterns(self) -> Dict[str, list]:
         return {
@@ -23,7 +27,7 @@ class GoodbyeModule(ModuleBase):
     async def handle(self, user_input: str, context: Dict[str, Any]) -> Optional[str]:
         """Retourne un message d'adieu"""
         responses = [
-            "Ok.",
+            "À plus tard.",
             "À plus.",
             "Salut.",
         ]
