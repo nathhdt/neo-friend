@@ -110,4 +110,4 @@ class Router:
     
     def get_goodbye_response(self) -> str:
         """Retourne une réponse d'au revoir"""
-        return "Ok."
+        return "À plus tard."

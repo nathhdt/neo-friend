@@ -1,14 +1,16 @@
-from core.module_base import ModuleBase, ModuleResponse
-from typing import Dict, Any, Optional, Union
-from utils.logging import technical_log
-from datetime import datetime
-from email.utils import parsedate_to_datetime
 import imaplib
 import email
-from email.header import decode_header
-from email.utils import parseaddr
 import yaml
+from core.module_base import ModuleBase, ModuleResponse
+from datetime import datetime
+from email.header import decode_header
+from email.utils import parseaddr, parsedate_to_datetime
 from pathlib import Path
+from typing import Dict, Any, Optional, Union
+from utils.logging import technical_log
+
+
+from .call_patterns import PATTERNS
 
 
 class ProtonMailModule(ModuleBase):
@@ -45,35 +47,7 @@ class ProtonMailModule(ModuleBase):
             self.imap = None
     
     def get_patterns(self) -> Dict[str, list]:
-        return {
-            'patterns': [
-                r'\b(combien|nombre|quantite) (de |d\' |)mails?\b',
-                r'\b(j\'ai|ai-je|jai) (combien de |des |)mails?\b',
-                
-                r'\b(lis|lire|lit|affiche|afficher|montre|montrer|voir) (mes |les |)mails?\b',
-                r'\bcheck (mes |)mails?\b',
-                r'\b(regarde|regarder|consulte|consulter) (mes |les |)mails?\b',
-                r'\b(ouvre|ouvrir) (mes |les |)mails?\b',
-                r'\b(verifie|verifier) (mes |les |)mails?\b',
-                
-                r'\b(titre|titres|sujet|sujets) (des |de mes |)mails?\b',
-                r'\b(quel|quels|quelle|quelles) (est le |sont les |)(titre|sujet|mail)s?\b',
-                r'\b(donne|donner|dis|dire|balance|balancer) (moi |)(le |les |)(titre|sujet)s?\b',
-                r'\b(liste|lister) (les |)(titre|sujet|mail)s?\b',
-                
-                r'\b(c\'est quoi|cest quoi|quoi comme|quest-ce que) (mes |les |)(mail|message)s?\b',
-                r'\b(quels sont|lesquels|y a quoi comme) (mes |les |)mails?\b',
-                r'\bmails? (non lus?|que jai pas lus?|pas encore lus?)\b',
-                r'\b(les |)(mails?|messages?) (que |qu\' |)(j\'ai pas|jai pas|je n\'ai pas|pas encore) lus?\b',
-                r'\b(ceux|celui) que (j\'ai pas|jai pas) lus?\b',
-                
-                r'\best-ce que (j\'ai|tu as|jai) (des |)mails?\b',
-                r'\b(y a-t-il|il y a|ya) (des |)mails?\b',
-                r'\b(nouveau|nouveaux|new) mails?\b',
-                r'\b(j\'ai recu|recu|jai recu) (des |un |)mails?\b',
-            ],
-            'priority': 10
-        }
+        return PATTERNS
     
     def _clean_subject(self, subject: str) -> str:
         prefixes = ['Re:', 'RE:', 'Fwd:', 'FW:', 'Fw:', 'TR:', 'Re :', 'Fwd :']
