@@ -17,6 +17,7 @@ class TTS:
         self.process = None
         self.lock = threading.Lock()
         self.running = True
+        self._pending = threading.Event()
 
         self.worker = threading.Thread(target=self._run, daemon=True)
         self.worker.start()
@@ -43,22 +44,26 @@ class TTS:
                         stderr=subprocess.DEVNULL,
                     )
 
+                self._pending.clear()
+
                 self.process.wait()
 
                 with self.lock:
                     self.process = None
 
             except Exception as e:
+                self._pending.clear()
                 technical_log("tts", f"error: {e}")
 
     def speak(self, text: str):
+        self._pending.set()
         self.queue.put(text)
 
     def is_speaking(self):
         with self.lock:
             active_process = self.process is not None
 
-        return active_process or not self.queue.empty()
+        return active_process or not self.queue.empty() or self._pending.is_set()
 
     def wait_until_done(self):
         while self.is_speaking():

@@ -115,12 +115,10 @@ class ConversationManager:
         
         if module_response:
             if isinstance(module_response, str):
-                # Imprimer ET parler la réponse (conversation.py gère "neo >" maintenant)
                 from utils.colors import CYAN, RESET
                 print(f"{CYAN}neo > {module_response}{RESET}")
                 speak_text(module_response, self.tts)
                 
-                # ATTENDRE que le TTS finisse AVANT de retourner
                 await self.wait_for_tts()
                 
                 return module_response
@@ -139,7 +137,6 @@ Métadonnées : {module_response.metadata}
 
 Réponds à l'utilisateur de manière naturelle et conversationnelle en français."""
                 
-                # Imprimer "neo > " avant de streamer
                 from utils.colors import CYAN, RESET
                 print(f"{CYAN}neo > ", end="", flush=True)
                 
@@ -149,8 +146,7 @@ Réponds à l'utilisateur de manière naturelle et conversationnelle en françai
                     self.tts
                 )
                 return response
-            
-        # Pas de module, LLM direct
+        
         from utils.colors import CYAN, RESET
         print(f"{CYAN}neo > ", end="", flush=True)
         

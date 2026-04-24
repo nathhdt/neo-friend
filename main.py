@@ -20,6 +20,8 @@ class Neo:
     """Assistant IA Neo - Orchestrateur principal"""
     
     def __init__(self):
+        subprocess.run(["clear"])
+        
         # configuration
         self.config = ConfigManager()
         
@@ -66,7 +68,6 @@ class Neo:
         self.conversation.add_turn(user_input, response)
         
         await self.conversation.wait_for_tts()
-        print()
         
         return True
     
@@ -103,7 +104,6 @@ class Neo:
     
     def run(self):
         """Lance Neo"""
-        subprocess.run(["clear"])
         asyncio.run(self.conversation_loop())
 
 
