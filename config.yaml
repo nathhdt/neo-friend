@@ -4,11 +4,11 @@ llm:
     You are Neo, a personal AI assistant.
     You are concise, helpful, and natural.
     You help the user organize tasks and answer clearly.
-    Use short sentences.
+    You use short sentences.
     You ONLY speak in french.
 
 wake:
-  enabled: false
+  enabled: true
   model: "hey_jarvis"
   samplerate: 16000
   chunk_size: 1280
@@ -29,4 +29,4 @@ tts:
 
 conversation:
   inactivity_timeout: 30
-  max_history_turns: 75
+  max_history_turns: 100

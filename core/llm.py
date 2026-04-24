@@ -1,19 +1,25 @@
-import yaml
+"""
+Gestionnaire LLM refactorisé.
+Utilise ConfigManager et corrige le bug du model_path hardcodé.
+"""
 from mlx_lm import load, stream_generate
 from utils.logging import technical_log
+from core.config_manager import ConfigManager
 
 
 class LLM:
     def __init__(self):
-        with open("config.yaml", "r") as f:
-            config = yaml.safe_load(f)
-
-        self.model_path = config["llm"]["model"]
-        self.system_prompt = config["llm"]["system_prompt"]
+        config = ConfigManager()
         
-        self.model_path = "models/mistral-small-v3"
-        technical_log("llm", "loading llm model...")
-        self.model, self.tokenizer = load(self.model_path, tokenizer_config={"fix_mistral_regex": True})
+        self.model_name = config.get("llm", "model", default="mistral-small-v3")
+        self.model_path = f"models/{self.model_name}"
+        self.system_prompt = config.get("llm", "system_prompt", default="You are a helpful AI assistant.")        
+        
+        technical_log("llm", f"loading model: {self.model_path}")
+        self.model, self.tokenizer = load(
+            self.model_path, 
+            tokenizer_config={"fix_mistral_regex": True}
+        )
         technical_log("llm", "model loaded")
 
     async def think(self, user_input, history=None):
