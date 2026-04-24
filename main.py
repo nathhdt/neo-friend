@@ -13,6 +13,27 @@ from utils.logging import technical_log
 from utils.text import speak_text, stream_llm_to_tts
 
 
+def truncate_history(history, max_turns):
+    """
+    Tronque l'historique pour garder les N derniers tours
+    
+    Args:
+        history: Liste de messages
+        max_turns: Nombre maximum de tours (user + assistant = 1 tour)
+    
+    Returns:
+        Liste tronquée
+    """
+    max_messages = max_turns * 2
+    
+    if len(history) > max_messages:
+        old_count = len(history)
+        history = history[-max_messages:]
+        technical_log("memory", f"truncated history: {old_count} -> {len(history)} messages")
+    
+    return history
+
+
 async def main():
     subprocess.run(["clear"])
 
@@ -23,11 +44,15 @@ async def main():
     router = Router()
 
     conversation_active = False
+    conversation_history = []
 
     with open("config.yaml", "r") as f:
         config = yaml.safe_load(f)
         INACTIVITY_TIMEOUT = config.get("conversation", {}).get("inactivity_timeout", 30.0)
         WAKE_ENABLED = config.get("wake", {}).get("enabled", True)
+        MAX_HISTORY_TURNS = config.get("conversation", {}).get("max_history_turns", 50)
+
+    technical_log("memory", f"conversation history limit: {MAX_HISTORY_TURNS} turns ({MAX_HISTORY_TURNS * 2} messages)")
 
     while True:
         try:
@@ -60,6 +85,7 @@ async def main():
                 print("\n")
                 technical_log("wake", "inactivity timeout, returning to wake word mode")
                 conversation_active = False
+                conversation_history = []
                 await asyncio.sleep(0.5)
                 continue
             
@@ -80,6 +106,7 @@ async def main():
                     await asyncio.sleep(0.05)
                 
                 conversation_active = False
+                conversation_history = []
                 technical_log("wake", "conversation ended, returning to wake word mode")
                 await asyncio.sleep(2.0)
                 continue
@@ -97,6 +124,11 @@ async def main():
                 if isinstance(module_response, str):
                     print(f"{CYAN}neo > {module_response}{RESET}\n")
                     speak_text(module_response, tts)
+                    
+                    conversation_history.append({"role": "user", "content": user_input})
+                    conversation_history.append({"role": "assistant", "content": module_response})
+                    
+                    conversation_history = truncate_history(conversation_history, MAX_HISTORY_TURNS)
                     
                     while tts.is_speaking():
                         await asyncio.sleep(0.05)
@@ -122,7 +154,15 @@ Réponds à l'utilisateur de manière naturelle et conversationnelle en françai
                     
                     print(f"{CYAN}neo > ", end="", flush=True)
                     
-                    await stream_llm_to_tts(neo_brain.think(enriched_prompt), tts)
+                    response = await stream_llm_to_tts(
+                        neo_brain.think(enriched_prompt, history=conversation_history), 
+                        tts
+                    )
+                    
+                    conversation_history.append({"role": "user", "content": user_input})
+                    conversation_history.append({"role": "assistant", "content": response})
+                    
+                    conversation_history = truncate_history(conversation_history, MAX_HISTORY_TURNS)
                     
                     while tts.is_speaking():
                         await asyncio.sleep(0.05)
@@ -130,9 +170,18 @@ Réponds à l'utilisateur de manière naturelle et conversationnelle en françai
                     print()
                     continue
             
+            conversation_history.append({"role": "user", "content": user_input})
+            
             print(f"{CYAN}neo > ", end="", flush=True)
             
-            await stream_llm_to_tts(neo_brain.think(user_input), tts)
+            response = await stream_llm_to_tts(
+                neo_brain.think(user_input, history=conversation_history), 
+                tts
+            )
+            
+            conversation_history.append({"role": "assistant", "content": response})
+            
+            conversation_history = truncate_history(conversation_history, MAX_HISTORY_TURNS)
 
             while tts.is_speaking():
                 await asyncio.sleep(0.05)

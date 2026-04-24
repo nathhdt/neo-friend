@@ -1,4 +1,3 @@
-import mlx.core as mx
 import yaml
 from mlx_lm import load, stream_generate
 from utils.logging import technical_log
@@ -17,9 +16,20 @@ class LLM:
         self.model, self.tokenizer = load(self.model_path, tokenizer_config={"fix_mistral_regex": True})
         technical_log("llm", "model loaded")
 
-    async def think(self, user_input, history=[]):
+    async def think(self, user_input, history=None):
+        """
+        Génère une réponse en tenant compte de l'historique
+        
+        Args:
+            user_input: Message actuel de l'utilisateur
+            history: Liste de messages [{role, content}, ...] (optionnel)
+        """
+        if history is None:
+            history = []
+        
         system_message = {"role": "system", "content": self.system_prompt}
         messages = [system_message] + history + [{"role": "user", "content": user_input}]
+        
         prompt = self.tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
