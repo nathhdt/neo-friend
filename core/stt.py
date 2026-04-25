@@ -52,7 +52,6 @@ class STT:
         return result["text"].strip()
 
     def stop_listening(self):
-        """Arrête l'écoute en cours"""
         self.should_stop = True
 
     def listen(self):
@@ -61,21 +60,32 @@ class STT:
         recording = False
         silence_count = 0
 
+        pre_buffer = []
+        pre_buffer_size = int(self.samplerate * 0.5)
+
         def callback(indata, frames, time, status):
-            nonlocal buffer, recording, silence_count
+            nonlocal buffer, recording, silence_count, pre_buffer
 
             if self.should_stop:
                 return
 
             audio = indata[:, 0]
 
-            if len(audio) != self.frame_size:
+            if len(audio) < self.frame_size:
                 return
+            
+            pre_buffer.extend(audio)
+            if len(pre_buffer) > pre_buffer_size:
+                pre_buffer = pre_buffer[-pre_buffer_size:]
 
             if self.vad.is_speech(audio):
+                if not recording:
+                    buffer.extend(pre_buffer)
+
                 recording = True
                 silence_count = 0
                 buffer.extend(audio)
+
             elif recording:
                 silence_count += 1
                 buffer.extend(audio)
