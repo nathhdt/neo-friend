@@ -1,12 +1,13 @@
 import mlx_whisper
+import numpy as np
 import sounddevice as sd
 import soundfile as sf
-import numpy as np
 import tempfile
-from pathlib import Path
-from utils.logging import technical_log
+
 from core.config_manager import ConfigManager
 from core.vad import SileroVAD
+from pathlib import Path
+from utils.logging import technical_log
 
 
 class STT:

@@ -30,7 +30,6 @@ class ModuleBase(ABC):
     def get_tools(self) -> List:
         """
         Retourne les LangChain Tools exposés par ce module.
-        À surcharger dans les modules qui veulent être utilisables par l'agent.
         """
         return []
     

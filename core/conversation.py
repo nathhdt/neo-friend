@@ -3,8 +3,9 @@ Gestionnaire de conversation centralisé.
 Responsabilités : état, historique, timeouts, orchestration STT/TTS/LLM/Agent.
 """
 import asyncio
-from typing import Optional, Dict, Any, List
+
 from enum import Enum
+from typing import Optional, Dict, Any, List
 from utils.logging import technical_log
 
 
@@ -102,11 +103,9 @@ class ConversationManager:
         """
         normalized = text.lower()
         
-        # Requête longue = probablement multi-intent
         if len(normalized.split()) > 15:
             return True
         
-        # Mots de liaison conditionnelle
         conditional_markers = [
             "si ", "uniquement si", "seulement si", "à condition",
             "dans le cas", "au cas où", "en fonction de",
@@ -135,7 +134,6 @@ class ConversationManager:
         from utils.colors import CYAN, RESET
         import json
         
-        # Requête complexe → bypass regex, agent direct
         if self._is_complex_query(user_input):
             print(f"{CYAN}neo > ", end="", flush=True)
             response = await stream_llm_to_tts(
@@ -150,7 +148,6 @@ class ConversationManager:
             'llm': self.llm
         }
         
-        # Fast-path : router regex (requêtes simples uniquement)
         module_response = await self.router.route(user_input, context)
         
         if module_response:
@@ -181,7 +178,6 @@ Réponds à l'utilisateur de manière naturelle et conversationnelle en françai
                 )
                 return response
         
-        # Pas de match regex → agent LangGraph (LLM + tools)
         print(f"{CYAN}neo > ", end="", flush=True)
         response = await stream_llm_to_tts(
             self.agent.run(user_input, history=self.history),

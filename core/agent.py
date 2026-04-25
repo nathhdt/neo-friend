@@ -1,15 +1,13 @@
 """
 Agent LangGraph.
 Boucle ReAct : LLM → conditional edge → Tool execution → LLM.
-Streaming de la réponse finale uniquement (les tool calls sont silencieux).
-Interface identique à LLM.think() : async generator de str chunks.
 """
-from typing import Literal, List, Dict, Any
 from langchain_core.messages import (
     SystemMessage, HumanMessage, AIMessage,
     AIMessageChunk, ToolMessage
 )
 from langgraph.graph import StateGraph, MessagesState, END
+from typing import Literal, List, Dict
 from utils.logging import technical_log
 
 
@@ -21,7 +19,7 @@ class Agent:
     def __init__(self, llm, tools: List, system_prompt: str):
         """
         Args:
-            llm: Instance ChatOllama (pas le wrapper LLM)
+            llm: Instance ChatOllama
             tools: Liste de LangChain Tools
             system_prompt: System prompt pour l'agent
         """
@@ -81,8 +79,7 @@ class Agent:
             if hasattr(last, "tool_calls") and last.tool_calls:
                 return "tools"
             return END
-
-        # Construction du graphe
+        
         graph = StateGraph(MessagesState)
         graph.add_node("agent", agent_node)
         graph.add_node("tools", tool_node)
@@ -113,8 +110,8 @@ class Agent:
         """
         Exécute l'agent et yield les chunks de texte de la réponse finale.
 
-        Les tool calls sont exécutés silencieusement (loggés mais pas streamés).
-        Seule la réponse textuelle finale du LLM est streamée chunk par chunk.
+        Les tool calls sont exécutés silencieusement (loggés, pas streamés).
+        Seule la réponse du LLM est streamée chunk par chunk.
 
         Yields:
             str: Chunks de texte au fur et à mesure
@@ -123,9 +120,7 @@ class Agent:
             history = []
 
         messages = self._build_messages(user_input, history)
-
-        # recursion_limit = max steps dans le graphe
-        # Chaque iteration agent→tools = 2 steps, +1 pour le step final
+        
         config = {"recursion_limit": self.MAX_ITERATIONS * 2 + 1}
 
         async for msg, metadata in self.graph.astream(
@@ -133,8 +128,6 @@ class Agent:
             stream_mode="messages",
             config=config
         ):
-            # Stream uniquement le contenu textuel du noeud "agent"
-            # Les tool_call_chunks indiquent un appel d'outil, pas une réponse finale
             if (
                 metadata.get("langgraph_node") == "agent"
                 and isinstance(msg, AIMessageChunk)

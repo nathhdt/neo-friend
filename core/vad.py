@@ -1,18 +1,16 @@
-import yaml
 import torch
+
+from core.config_manager import ConfigManager
 from silero_vad import load_silero_vad
 
 
 class SileroVAD:
     def __init__(self):
-        with open("config.yaml", "r") as f:
-            config = yaml.safe_load(f)
+        config = ConfigManager()
 
-        vad_cfg = config["vad"]
-
-        self.sample_rate = config["stt"].get("samplerate", 16000)
-        self.frame_size = vad_cfg.get("frame_size", 512)
-        self.threshold = vad_cfg.get("threshold", 0.5)
+        self.sample_rate = config.get("vad", "samplerate", default=16000)
+        self.frame_size = config.get("vad", "frame_size", default=512)
+        self.threshold = config.get("vad", "threshold", default=0.5)
 
         self.model = load_silero_vad()
 

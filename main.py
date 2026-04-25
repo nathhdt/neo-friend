@@ -5,20 +5,20 @@ Architecture simplifiée avec délégation aux gestionnaires.
 import asyncio
 import subprocess
 
+from core.agent import Agent
+from core.config_manager import ConfigManager
+from core.conversation import ConversationManager
 from core.llm import LLM
+from core.router import Router
 from core.stt import STT
 from core.tts import TTS
 from core.wake import WakeWord
-from core.router import Router
-from core.agent import Agent
-from core.conversation import ConversationManager
-from core.config_manager import ConfigManager
 from utils.colors import CYAN, GREEN, RESET
 from utils.logging import technical_log
 
 
 class Neo:
-    """Assistant IA Neo - Orchestrateur principal"""
+    """Neo - Orchestrateur principal"""
     
     def __init__(self):
         subprocess.run(["clear"])
@@ -31,7 +31,6 @@ class Neo:
         self.wake = WakeWord()
         self.router = Router()
         
-        # Agent LangGraph avec tous les tools des modules
         self.agent = Agent(
             llm=self.llm.llm,
             tools=self.router.get_all_tools(),

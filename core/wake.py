@@ -1,7 +1,9 @@
-import time
 import numpy as np
+import os
 import sounddevice as sd
-import yaml
+import time
+
+from core.config_manager import ConfigManager
 from openwakeword.model import Model
 from openwakeword.utils import download_models
 from utils.logging import technical_log
@@ -9,20 +11,17 @@ from utils.logging import technical_log
 
 class WakeWord:
     def __init__(self):
-        with open("config.yaml", "r") as f:
-            config = yaml.safe_load(f)
+        config = ConfigManager()
 
-        wake_cfg = config["wake"]
-
-        self.enabled = wake_cfg.get("enabled", True)
+        self.enabled = config.get("wake", "enabled", default=True)
         
         if self.enabled:
             download_models()
             
-            self.model_name = wake_cfg.get("model", "hey_jarvis")
-            self.samplerate = wake_cfg.get("samplerate", 16000)
-            self.chunk_size = wake_cfg.get("chunk_size", 1280)
-            self.threshold = wake_cfg.get("threshold", 0.5)
+            self.model_name = config.get("wake", "model", default="hey_jarvis")
+            self.samplerate = config.get("wake", "samplerate", default=16000)
+            self.chunk_size = config.get("wake", "chunk_size", default=1280)
+            self.threshold = config.get("wake", "threshold", default=0.5)
             
             self.model = Model(
                 wakeword_models=[self.model_name],
@@ -30,7 +29,7 @@ class WakeWord:
             )
 
     def _find_input_device(self):
-        """Trouve le micro physique (pas les adapters virtuels NoMachine etc.)"""
+        """Trouve le micro physique"""
         try:
             devices = sd.query_devices()
             for i, dev in enumerate(devices):
@@ -43,7 +42,6 @@ class WakeWord:
 
     def _open_stream(self, callback):
         """Ouvre le stream audio avec retry pour laisser CoreAudio se stabiliser"""
-        import os, contextlib
         device = self._find_input_device()
         max_retries = 3
 

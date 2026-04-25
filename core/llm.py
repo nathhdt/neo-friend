@@ -1,7 +1,7 @@
-from langchain_ollama import ChatOllama
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessageChunk
-from utils.logging import technical_log
 from core.config_manager import ConfigManager
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessageChunk
+from langchain_ollama import ChatOllama
+from utils.logging import technical_log
 
 
 class LLM:

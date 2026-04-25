@@ -1,9 +1,10 @@
+import importlib
 import re
 import unicodedata
-import importlib
-from pathlib import Path
-from typing import List, Optional, Dict, Any, Union
+
 from core.module_base import ModuleBase
+from pathlib import Path
+from typing import List, Dict, Any
 from utils.logging import technical_log
 
 

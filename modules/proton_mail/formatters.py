@@ -1,5 +1,5 @@
-from email.utils import parseaddr, parsedate_to_datetime
 from datetime import datetime
+from email.utils import parseaddr, parsedate_to_datetime
 
 
 def clean_subject(subject: str) -> str:
@@ -43,5 +43,5 @@ def format_relative_date(date_str: str) -> str:
         if days < 30:
             return f"il y a environ {days // 7} semaines"
         return f"il y a environ {days // 30} mois"
-    except:
+    except:  # noqa: E722
         return "récemment"

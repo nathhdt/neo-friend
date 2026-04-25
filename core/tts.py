@@ -1,6 +1,7 @@
+import queue
 import subprocess
 import threading
-import queue
+
 from core.config_manager import ConfigManager
 from utils.logging import technical_log
 
