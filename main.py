@@ -10,6 +10,7 @@ from core.stt import STT
 from core.tts import TTS
 from core.wake import WakeWord
 from core.router import Router
+from core.agent import Agent
 from core.conversation import ConversationManager
 from core.config_manager import ConfigManager
 from utils.colors import CYAN, GREEN, RESET
@@ -30,10 +31,18 @@ class Neo:
         self.wake = WakeWord()
         self.router = Router()
         
+        # Agent LangGraph avec tous les tools des modules
+        self.agent = Agent(
+            llm=self.llm.llm,
+            tools=self.router.get_all_tools(),
+            system_prompt=self.llm.system_prompt
+        )
+        
         self.conversation = ConversationManager(
             stt=self.stt,
             tts=self.tts,
             llm=self.llm,
+            agent=self.agent,
             router=self.router,
             config=self.config.config
         )
@@ -98,7 +107,7 @@ class Neo:
                 print(f"\n{CYAN}stopping...")
                 self.tts.stop()
                 import sounddevice as sd
-                sd.stop()      
+                sd.stop()
                 break
     
     def run(self):
@@ -115,7 +124,7 @@ def main():
         print()
     finally:
         import sounddevice as sd
-        sd.stop() 
+        sd.stop()
 
 if __name__ == "__main__":
     main()

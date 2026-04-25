@@ -1,6 +1,6 @@
 """
 Gestionnaire de conversation centralisé.
-Responsabilités : état, historique, timeouts, orchestration STT/TTS/LLM.
+Responsabilités : état, historique, timeouts, orchestration STT/TTS/LLM/Agent.
 """
 import asyncio
 from typing import Optional, Dict, Any, List
@@ -17,10 +17,11 @@ class ConversationState(Enum):
 class ConversationManager:
     """Gère le cycle de vie complet d'une conversation"""
     
-    def __init__(self, stt, tts, llm, router, config: Dict[str, Any]):
+    def __init__(self, stt, tts, llm, agent, router, config: Dict[str, Any]):
         self.stt = stt
         self.tts = tts
         self.llm = llm
+        self.agent = agent
         self.router = router
         
         self.inactivity_timeout = config.get("conversation", {}).get("inactivity_timeout", 30.0)
@@ -94,16 +95,54 @@ class ConversationManager:
         
         return False
     
+    def _is_complex_query(self, text: str) -> bool:
+        """
+        Détecte si une requête est trop complexe pour le fast-path regex.
+        Indicateurs : longueur, mots de liaison conditionnelle, multi-intent.
+        """
+        normalized = text.lower()
+        
+        # Requête longue = probablement multi-intent
+        if len(normalized.split()) > 15:
+            return True
+        
+        # Mots de liaison conditionnelle
+        conditional_markers = [
+            "si ", "uniquement si", "seulement si", "à condition",
+            "dans le cas", "au cas où", "en fonction de",
+            "puis ", "ensuite ", "après ça", "et aussi",
+            "et si", "mais si", "sinon",
+        ]
+        if any(marker in normalized for marker in conditional_markers):
+            return True
+        
+        return False
+
     async def process_input(self, user_input: str) -> str:
         """
-        Traite une entrée utilisateur via le router ou le LLM
+        Traite une entrée utilisateur.
+        
+        Pipeline :
+        1. Requête complexe ? → agent LangGraph directement
+        2. Router regex → match simple ? → fast-path module direct
+        3. Pas de match → agent LangGraph (LLM + tools)
         
         Returns:
             Réponse de l'assistant
         """
         from core.module_base import ModuleResponse
-        from utils.text import speak_text
+        from utils.text import speak_text, stream_llm_to_tts
+        from utils.colors import CYAN, RESET
         import json
+        
+        # Requête complexe → bypass regex, agent direct
+        if self._is_complex_query(user_input):
+            print(f"{CYAN}neo > ", end="", flush=True)
+            response = await stream_llm_to_tts(
+                self.agent.run(user_input, history=self.history),
+                self.tts
+            )
+            return response
         
         context = {
             'tts': self.tts,
@@ -111,16 +150,14 @@ class ConversationManager:
             'llm': self.llm
         }
         
+        # Fast-path : router regex (requêtes simples uniquement)
         module_response = await self.router.route(user_input, context)
         
         if module_response:
             if isinstance(module_response, str):
-                from utils.colors import CYAN, RESET
                 print(f"{CYAN}neo > {module_response}{RESET}")
                 speak_text(module_response, self.tts)
-                
                 await self.wait_for_tts()
-                
                 return module_response
             
             elif isinstance(module_response, ModuleResponse):
@@ -137,22 +174,17 @@ Métadonnées : {module_response.metadata}
 
 Réponds à l'utilisateur de manière naturelle et conversationnelle en français."""
                 
-                from utils.colors import CYAN, RESET
                 print(f"{CYAN}neo > ", end="", flush=True)
-                
-                from utils.text import stream_llm_to_tts
                 response = await stream_llm_to_tts(
                     self.llm.think(enriched_prompt, history=self.history),
                     self.tts
                 )
                 return response
         
-        from utils.colors import CYAN, RESET
+        # Pas de match regex → agent LangGraph (LLM + tools)
         print(f"{CYAN}neo > ", end="", flush=True)
-        
-        from utils.text import stream_llm_to_tts
         response = await stream_llm_to_tts(
-            self.llm.think(user_input, history=self.history),
+            self.agent.run(user_input, history=self.history),
             self.tts
         )
         return response
