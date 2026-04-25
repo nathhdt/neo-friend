@@ -1,15 +1,9 @@
-"""
-Gestionnaire de configuration centralisé.
-Évite de recharger config.yaml dans chaque classe.
-"""
 import yaml
 from pathlib import Path
 from typing import Dict, Any
 
 
 class ConfigManager:
-    """Singleton pour la configuration globale"""
-    
     _instance = None
     _config: Dict[str, Any] = None
     
@@ -23,7 +17,6 @@ class ConfigManager:
             self.reload()
     
     def reload(self):
-        """Recharge la configuration depuis config.yaml"""
         config_path = Path("config.yaml")
         if config_path.exists():
             with open(config_path, "r") as f:
@@ -32,12 +25,6 @@ class ConfigManager:
             self._config = {}
     
     def get(self, *keys, default=None) -> Any:
-        """
-        Récupère une valeur de config par chemin
-        
-        Exemples:
-            config.get("llm", "model") → config["llm"]["model"]
-        """
         value = self._config
         for key in keys:
             if isinstance(value, dict):
@@ -51,10 +38,8 @@ class ConfigManager:
         return value
     
     def get_section(self, section: str) -> Dict[str, Any]:
-        """Récupère une section complète de la config"""
         return self._config.get(section, {})
     
     @property
     def config(self) -> Dict[str, Any]:
-        """Retourne la config complète"""
         return self._config

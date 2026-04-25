@@ -13,7 +13,18 @@ if ! command -v brew &> /dev/null; then
 fi
 
 # system dependencies
-brew install python@3.12 portaudio hf ffmpeg
+brew install python@3.12 ollama portaudio hf ffmpeg
+
+# start Ollama service if not running
+if ! pgrep -x "ollama" > /dev/null; then
+    echo -e "${BLUE}starting Ollama service...${NC}"
+    ollama serve &
+    sleep 3
+fi
+
+# pull LLM model
+echo -e "${BLUE}pulling LLM...${NC}"
+ollama pull mistral-small3.2:latest
 
 # Python environment setup
 PYTHON_BIN="/opt/homebrew/bin/python3.12"
@@ -25,10 +36,9 @@ pip install --upgrade pip
 echo -e "${BLUE}installing dependencies${NC}"
 pip install -r requirements.txt
 
-# models download
-echo -e "${BLUE}downloading models...${NC}"
+# STT model download (whisper stays on MLX)
+echo -e "${BLUE}downloading whisper model...${NC}"
 mkdir -p models
-hf download mlx-community/Mistral-Small-24B-instruct-2501-4bit --local-dir models/mistral-small-v3
 hf download mlx-community/whisper-large-v3-turbo --local-dir models/whisper-large-v3-turbo
 
 # launcher creation
@@ -41,3 +51,4 @@ EOF
 chmod +x neo
 
 echo -e "${GREEN}installation complete. start with: ./neo${NC}"
+echo -e "${GREEN}make sure Ollama is running: ollama serve${NC}"

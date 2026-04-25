@@ -1,5 +1,5 @@
-mlx
-mlx-lm
+langchain-core
+langchain-ollama
 mlx-whisper
 numpy
 openwakeword

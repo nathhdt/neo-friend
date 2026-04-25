@@ -1,4 +1,3 @@
-import yaml
 import mlx_whisper
 import sounddevice as sd
 import soundfile as sf
