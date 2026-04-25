@@ -19,8 +19,7 @@ class LLM:
             base_url=self.base_url,
             temperature=config.get("llm", "temperature", default=0.7),
         )
-
-        # Test de connexion
+        
         try:
             self.llm.invoke([HumanMessage(content="ping")])
             technical_log("llm", "Ollama connection OK")

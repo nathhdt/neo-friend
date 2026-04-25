@@ -22,10 +22,8 @@ class Neo:
     def __init__(self):
         subprocess.run(["clear"])
         
-        # configuration
         self.config = ConfigManager()
         
-        # core components
         self.llm = LLM()
         self.stt = STT()
         self.tts = TTS()
@@ -45,7 +43,6 @@ class Neo:
     async def wait_for_wake_word(self):
         """Attend le wake word si activé"""
         if self.wake_enabled:
-            technical_log("wake", "waiting for wake word...")
             self.wake.listen()
             technical_log("wake", "wake word detected")
         else:
@@ -100,6 +97,8 @@ class Neo:
             except KeyboardInterrupt:
                 print(f"\n{CYAN}stopping...")
                 self.tts.stop()
+                import sounddevice as sd
+                sd.stop()      
                 break
     
     def run(self):
@@ -114,7 +113,9 @@ def main():
         neo.run()
     except KeyboardInterrupt:
         print()
-
+    finally:
+        import sounddevice as sd
+        sd.stop() 
 
 if __name__ == "__main__":
     main()

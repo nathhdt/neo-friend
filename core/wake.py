@@ -1,8 +1,10 @@
+import time
 import numpy as np
 import sounddevice as sd
 import yaml
 from openwakeword.model import Model
 from openwakeword.utils import download_models
+from utils.logging import technical_log
 
 
 class WakeWord:
@@ -27,6 +29,58 @@ class WakeWord:
                 inference_framework="onnx"
             )
 
+    def _find_input_device(self):
+        """Trouve le micro physique (pas les adapters virtuels NoMachine etc.)"""
+        try:
+            devices = sd.query_devices()
+            for i, dev in enumerate(devices):
+                if dev['max_input_channels'] > 0 and 'Microphone' in dev['name']:
+                    if 'NoMachine' not in dev['name']:
+                        return i
+        except Exception:
+            pass
+        return None
+
+    def _open_stream(self, callback):
+        """Ouvre le stream audio avec retry pour laisser CoreAudio se stabiliser"""
+        import os, contextlib
+        device = self._find_input_device()
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            try:
+                stream = sd.InputStream(
+                    samplerate=self.samplerate,
+                    channels=1,
+                    blocksize=self.chunk_size,
+                    callback=callback,
+                    dtype='float32',
+                    device=device
+                )
+                
+                devnull = os.open(os.devnull, os.O_WRONLY)
+                stderr_backup = os.dup(2)
+                os.dup2(devnull, 2)
+                try:
+                    stream.start()
+                finally:
+                    os.dup2(stderr_backup, 2)
+                    os.close(devnull)
+                    os.close(stderr_backup)
+                technical_log("wake", "waiting for wake word...")
+                return stream
+            except sd.PortAudioError:
+                if attempt < max_retries - 1:
+                    time.sleep((attempt + 1) * 2)
+                    try:
+                        sd._terminate()
+                        sd._initialize()
+                    except Exception:
+                        pass
+                    device = self._find_input_device()
+                else:
+                    raise
+
     def listen(self):
         if not self.enabled:
             return True
@@ -37,7 +91,6 @@ class WakeWord:
         )
         
         detected = False
-        stream = None
         frame_count = 0
         max_score_seen = 0.0
 
@@ -64,19 +117,13 @@ class WakeWord:
                     detected = True
                     break
 
-        stream = sd.InputStream(
-            samplerate=self.samplerate,
-            channels=1,
-            blocksize=self.chunk_size,
-            callback=callback,
-            dtype='float32'
-        )
-
-        stream.start()
+        stream = self._open_stream(callback)
 
         try:
             while not detected:
                 sd.sleep(100)
+        except KeyboardInterrupt:
+            raise
         finally:
             stream.stop()
             stream.close()
