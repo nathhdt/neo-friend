@@ -59,10 +59,10 @@ class ProtonMailModule(ModuleBase):
             count = len(messages[0].split())
 
             if count == 0:
-                return "T'as aucun mail non lu."
+                return "Tu as aucun mail non lu."
             if count == 1:
-                return "T'as 1 mail non lu."
-            return f"T'as {count} mails non lus."
+                return "Tu as 1 mail non lu."
+            return f"Tu as {count} mails non lus."
 
         except Exception as e:
             return "Erreur."
