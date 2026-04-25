@@ -71,6 +71,14 @@ class Router:
         
         technical_log("router", f"loaded {len(self.modules)} modules")
     
+    def get_all_tools(self) -> List:
+        """Collecte tous les LangChain Tools de tous les modules chargés"""
+        tools = []
+        for module in self.modules:
+            module_tools = module.get_tools()
+            tools.extend(module_tools)
+        return tools
+
     def _normalize(self, text: str) -> str:
         """Normalise le texte : minuscules + retire accents"""
         text = text.lower()

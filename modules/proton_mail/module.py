@@ -1,7 +1,9 @@
 import email
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, List
+
+from langchain_core.tools import tool
 
 from core.module_base import ModuleBase, ModuleResponse
 from utils.logging import technical_log
@@ -28,8 +30,91 @@ class ProtonMailModule(ModuleBase):
             with open(path) as f:
                 data = yaml.safe_load(f)
                 return data
-        
         return {}
+
+    def get_tools(self) -> List:
+        """Expose les opérations mail comme LangChain Tools"""
+
+        client = self.client
+
+        @tool
+        def check_email_count() -> str:
+            """Compte le nombre de mails non lus dans la boîte de réception ProtonMail. Utilise cet outil quand l'utilisateur demande combien il a de mails, s'il a de nouveaux messages, ou s'il a reçu du courrier."""
+            imap = client.connect()
+            if not imap:
+                return "Impossible de se connecter à ProtonMail."
+            try:
+                imap.select("INBOX")
+                _, messages = imap.search(None, "UNSEEN")
+                count = len(messages[0].split())
+                if count == 0:
+                    return "Aucun mail non lu."
+                if count == 1:
+                    return "1 mail non lu."
+                return f"{count} mails non lus."
+            except Exception:
+                return "Erreur lors de la vérification des mails."
+
+        @tool
+        def list_email_subjects() -> str:
+            """Liste les sujets et expéditeurs des mails non lus (max 5). Utilise cet outil quand l'utilisateur veut connaître les titres, sujets, ou savoir de qui viennent ses mails."""
+            imap = client.connect()
+            if not imap:
+                return "Impossible de se connecter à ProtonMail."
+            try:
+                imap.select("INBOX")
+                _, messages = imap.search(None, "UNSEEN")
+                ids = messages[0].split()
+                if not ids:
+                    return "Aucun mail non lu."
+
+                titles = []
+                for mail_id in ids[:5]:
+                    _, data = imap.fetch(mail_id, "(RFC822.HEADER)")
+                    msg = email.message_from_bytes(data[0][1])
+                    subject = clean_subject(decode_header_value(msg.get("Subject")))
+                    sender = format_sender(decode_header_value(msg.get("From")))
+                    titles.append(f"- {subject}, {sender}")
+
+                return "\n".join(titles)
+            except Exception:
+                return "Erreur lors de la récupération des sujets."
+
+        @tool
+        def read_emails() -> str:
+            """Lit le contenu des mails non lus (max 10) avec sujet, expéditeur, date et un extrait du corps. Utilise cet outil quand l'utilisateur veut lire, consulter ou vérifier ses mails en détail."""
+            imap = client.connect()
+            if not imap:
+                return "Impossible de se connecter à ProtonMail."
+            try:
+                imap.select("INBOX")
+                _, messages = imap.search(None, "UNSEEN")
+                ids = messages[0].split()
+                if not ids:
+                    return "Aucun mail non lu."
+
+                results = []
+                for mail_id in ids[:10]:
+                    _, data = imap.fetch(mail_id, "(BODY.PEEK[])")
+                    msg = email.message_from_bytes(data[0][1])
+
+                    subject = clean_subject(decode_header_value(msg.get("Subject")))
+                    sender = decode_header_value(msg.get("From"))
+                    date_raw = msg.get("Date")
+                    body = get_email_body(msg)
+
+                    results.append(
+                        f"Sujet: {subject}\n"
+                        f"De: {sender}\n"
+                        f"Date: {format_relative_date(date_raw)}\n"
+                        f"Contenu: {body[:300]}\n"
+                    )
+
+                return "\n---\n".join(results)
+            except Exception:
+                return "Erreur lors de la lecture des mails."
+
+        return [check_email_count, list_email_subjects, read_emails]
 
     async def handle(self, user_input: str, context: Dict[str, Any]) -> Optional[Union[str, ModuleResponse]]:
         intent = context.get("intent")
@@ -52,67 +137,48 @@ class ProtonMailModule(ModuleBase):
 
     async def _count_unread(self, imap):
         try:
-            status, _ = imap.select("INBOX")
-
-            status, messages = imap.search(None, "UNSEEN")
-
+            imap.select("INBOX")
+            _, messages = imap.search(None, "UNSEEN")
             count = len(messages[0].split())
-
             if count == 0:
                 return "Tu as aucun mail non lu."
             if count == 1:
                 return "Tu as 1 mail non lu."
             return f"Tu as {count} mails non lus."
-
-        except Exception as e:
+        except Exception:
             return "Erreur."
 
     async def _list_titles(self, imap):
         try:
-            status, _ = imap.select("INBOX")
-
-            status, messages = imap.search(None, "UNSEEN")
-
+            imap.select("INBOX")
+            _, messages = imap.search(None, "UNSEEN")
             ids = messages[0].split()
-
             if not ids:
                 return "Aucun mail non lu."
 
             titles = []
-
             for mail_id in ids[:5]:
-                status, data = imap.fetch(mail_id, "(RFC822.HEADER)")
-
+                _, data = imap.fetch(mail_id, "(RFC822.HEADER)")
                 msg = email.message_from_bytes(data[0][1])
-
                 subject = clean_subject(decode_header_value(msg.get("Subject")))
                 sender = format_sender(decode_header_value(msg.get("From")))
-
                 titles.append(f"{subject}, {sender}.")
 
-            result = "\n".join(titles)
-
-            return result
-
-        except Exception as e:
+            return "\n".join(titles)
+        except Exception:
             return "Erreur."
 
     async def _read_mails(self, imap):
         try:
-            status, _ = imap.select("INBOX")
-
-            status, messages = imap.search(None, "UNSEEN")
-
+            imap.select("INBOX")
+            _, messages = imap.search(None, "UNSEEN")
             ids = messages[0].split()
-
             if not ids:
                 return "Aucun mail non lu."
 
             mails = []
-
             for mail_id in ids[:10]:
-                status, data = imap.fetch(mail_id, "(BODY.PEEK[])")
-
+                _, data = imap.fetch(mail_id, "(BODY.PEEK[])")
                 msg = email.message_from_bytes(data[0][1])
 
                 subject = clean_subject(decode_header_value(msg.get("Subject")))
@@ -147,8 +213,7 @@ Mail 1 : ...
 Mail 2 : ...
 """
             )
-
-        except Exception as e:
+        except Exception:
             return "Erreur."
 
     def on_load(self):
