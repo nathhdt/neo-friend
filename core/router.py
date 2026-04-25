@@ -83,30 +83,40 @@ class Router:
         normalized = self._normalize(text)
         return bool(self.goodbye_regex.search(normalized))
     
-    async def route(self, user_input: str, context: Dict[str, Any]) -> Optional[Union[str, 'ModuleResponse']]:
-        """
-        Route la requête vers le bon module
-        
-        Returns:
-            - str: Réponse directe
-            - ModuleResponse: Données pour le LLM
-            - None: Aucun module ne gère
-        """
-        from core.module_base import ModuleResponse
-        
+    async def route(self, user_input: str, context: Dict[str, Any]):
         normalized = self._normalize(user_input)
-        
+
+        best = None
+
         for module in self.modules:
             patterns_info = module.get_patterns()
-            patterns = patterns_info.get('patterns', [])
-            
-            for pattern in patterns:
-                if re.search(pattern, normalized, re.IGNORECASE):
-                    response = await module.handle(user_input, context)
-                    if response:
-                        return response
-        
-        return None
+            base_priority = patterns_info.get('priority', 0)
+
+            for item in patterns_info.get("patterns", []):
+                intent = item.get("intent")
+                score = 0
+
+                for pattern in item.get("patterns", []):
+                    if re.search(pattern, normalized):
+                        score += 1
+
+                if score > 0:
+                    total_score = score + base_priority
+
+                    if not best or total_score > best["score"]:
+                        best = {
+                            "module": module,
+                            "intent": intent,
+                            "score": total_score
+                        }
+
+        if not best:
+            return None
+
+        return await best["module"].handle(user_input, {
+            **context,
+            "intent": best["intent"]
+        })
     
     def get_goodbye_response(self) -> str:
         """Retourne une réponse d'au revoir"""
