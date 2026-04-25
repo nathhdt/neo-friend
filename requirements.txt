@@ -1,5 +1,6 @@
 langchain-core
 langchain-ollama
+langgraph
 mlx-whisper
 numpy
 openwakeword
