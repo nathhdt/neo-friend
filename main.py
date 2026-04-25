@@ -3,7 +3,6 @@ Point d'entrée principal de Neo.
 Architecture simplifiée avec délégation aux gestionnaires.
 """
 import asyncio
-import subprocess
 
 from core.agent import Agent
 from core.config_manager import ConfigManager
@@ -21,8 +20,6 @@ class Neo:
     """Neo - Orchestrateur principal"""
     
     def __init__(self):
-        subprocess.run(["clear"])
-        
         self.config = ConfigManager()
         
         self.llm = LLM()

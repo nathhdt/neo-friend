@@ -1,3 +1,11 @@
 CYAN = "\033[96m"
 GREEN = "\033[92m"
+RED = "\033[091m"
+
+BOLD = "\033[1m"
+BOLD_RESET = "\033[22m"
+
+ITALIC = "\033[3m"
+ITALIC_RESET = "\033[23m"
+
 RESET = "\033[0m"

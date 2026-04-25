@@ -5,7 +5,7 @@ from core.module_base import ModuleBase, ModuleResponse
 from langchain_core.tools import tool
 from pathlib import Path
 from typing import Dict, Any, Optional, Union, List
-from utils.logging import technical_log
+from utils.logging import step_start, step_ok, step_error
 
 from .call_patterns import PATTERNS
 from .imap_client import IMAPClient
@@ -214,6 +214,3 @@ Mail 2 : ...
             )
         except Exception:
             return "Erreur."
-
-    def on_load(self):
-        technical_log("proton-mail", "module loaded")

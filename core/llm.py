@@ -1,18 +1,18 @@
 from core.config_manager import ConfigManager
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessageChunk
 from langchain_ollama import ChatOllama
-from utils.logging import technical_log
+from utils.logging import step_start, step_ok, step_error
 
 
 class LLM:
     def __init__(self):
         config = ConfigManager()
 
-        self.model_name = config.get("llm", "model", default="mistral-small3.2:latest")
+        self.model_name = config.get("llm", "model", default="gpt-oss:20b")
         self.base_url = config.get("llm", "base_url", default="http://localhost:11434")
         self.system_prompt = config.get("llm", "system_prompt", default="You are a helpful AI assistant.")
 
-        technical_log("llm", f"connecting to Ollama: {self.model_name} @ {self.base_url}")
+        step_start("llm", f"connecting to Ollama: {self.model_name} @ {self.base_url}")
 
         self.llm = ChatOllama(
             model=self.model_name,
@@ -22,9 +22,9 @@ class LLM:
         
         try:
             self.llm.invoke([HumanMessage(content="ping")])
-            technical_log("llm", "Ollama connection OK")
+            step_ok("llm", "Ollama connection OK")
         except Exception as e:
-            technical_log("llm", f"Ollama connection failed: {e}")
+            step_error("llm", f"Ollama connection failed: {e}")
             raise
 
     async def think(self, user_input, history=None):

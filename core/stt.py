@@ -7,7 +7,7 @@ import tempfile
 from core.config_manager import ConfigManager
 from core.vad import SileroVAD
 from pathlib import Path
-from utils.logging import technical_log
+from utils.logging import step_start, step_ok, step_error
 
 
 class STT:
@@ -18,7 +18,8 @@ class STT:
         vad_cfg = config.get("vad")
 
         self.model_name = stt_cfg["model"]
-        self.model_path = Path(f"models/{self.model_name}")
+        self.model_dir = stt_cfg["location"]
+        self.model_path = Path(f"{self.model_dir}/{self.model_name}")
 
         self.samplerate = stt_cfg.get("samplerate", 16000)
 
@@ -28,7 +29,7 @@ class STT:
         
         self.should_stop = False
 
-        technical_log("stt", f"loading model: {self.model_path}")
+        step_start("stt", f"loading model: {self.model_name}")
 
         try:
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
@@ -37,10 +38,10 @@ class STT:
                     tmp.name,
                     path_or_hf_repo=self.model_path
                 )
-        except Exception:
-            pass
-
-        technical_log("stt", "model loaded")
+            step_ok("stt", f"model ready: {self.model_name}")
+        except Exception as e:
+            step_error("stt", f"failed to load model: {e}")
+            raise
 
     def transcribe(self, audio):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:

@@ -8,7 +8,7 @@ from langchain_core.messages import (
 )
 from langgraph.graph import StateGraph, MessagesState, END
 from typing import Literal, List, Dict
-from utils.logging import technical_log
+from utils.logging import technical_log, step_start, step_ok, step_error
 
 
 class Agent:
@@ -27,12 +27,15 @@ class Agent:
         self.tools = tools
         self.tools_by_name = {t.name: t for t in tools}
 
-        self.llm_with_tools = llm.bind_tools(tools) if tools else llm
+        step_start("agent", "initializing agent")
 
-        self.graph = self._build_graph()
-
-        tool_names = [t.name for t in tools]
-        technical_log("agent", f"ready with {len(tools)} tools: {tool_names}")
+        try:
+            self.llm_with_tools = llm.bind_tools(tools) if tools else llm
+            self.graph = self._build_graph()
+            step_ok("agent", f"ready with {len(tools)} tools")
+        except Exception as e:
+            step_error("agent", f"initialization failed: {e}")
+            raise
 
     def _build_graph(self):
         """Construit le StateGraph : agent → tools → agent → ... → END"""

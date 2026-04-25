@@ -3,10 +3,14 @@ Gestionnaire de conversation centralisé.
 Responsabilités : état, historique, timeouts, orchestration STT/TTS/LLM/Agent.
 """
 import asyncio
+import json
 
+from core.module_base import ModuleResponse
 from enum import Enum
 from typing import Optional, Dict, Any, List
+from utils.colors import CYAN, RESET
 from utils.logging import technical_log
+from utils.text import speak_text, stream_llm_to_tts
 
 
 class ConversationState(Enum):
@@ -128,18 +132,18 @@ class ConversationManager:
         
         Returns:
             Réponse de l'assistant
-        """
-        from core.module_base import ModuleResponse
-        from utils.text import speak_text, stream_llm_to_tts
-        from utils.colors import CYAN, RESET
-        import json
-        
+        """        
         if self._is_complex_query(user_input):
-            print(f"{CYAN}neo > ", end="", flush=True)
+
+            prefix = f"{CYAN}neo > "
+            print(prefix, end="", flush=True)
+
             response = await stream_llm_to_tts(
                 self.agent.run(user_input, history=self.history),
-                self.tts
+                self.tts,
+                prefix
             )
+            
             return response
         
         context = {
@@ -171,18 +175,26 @@ Métadonnées : {module_response.metadata}
 
 Réponds à l'utilisateur de manière naturelle et conversationnelle en français."""
                 
-                print(f"{CYAN}neo > ", end="", flush=True)
+                prefix = f"{CYAN}neo > "
+                print(prefix, end="", flush=True)
+
                 response = await stream_llm_to_tts(
                     self.llm.think(enriched_prompt, history=self.history),
-                    self.tts
+                    self.tts,
+                    prefix
                 )
+                
                 return response
         
-        print(f"{CYAN}neo > ", end="", flush=True)
+        prefix = f"{CYAN}neo > "
+        print(prefix, end="", flush=True)
+
         response = await stream_llm_to_tts(
             self.agent.run(user_input, history=self.history),
-            self.tts
+            self.tts,
+            prefix
         )
+        
         return response
     
     async def wait_for_tts(self):

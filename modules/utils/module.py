@@ -5,7 +5,7 @@ from core.module_base import ModuleBase
 from datetime import datetime
 from langchain_core.tools import tool
 from typing import Dict, Any, Optional, List
-from utils.logging import technical_log
+from utils.logging import step_start, step_ok, step_error
 
 from .call_patterns import PATTERNS
 
@@ -149,6 +149,3 @@ class UtilsModule(ModuleBase):
 
     def _random_number(self) -> str:
         return f"Je choisis {random.randint(0, 100)}."
-
-    def on_load(self):
-        technical_log("utils", "module loaded")

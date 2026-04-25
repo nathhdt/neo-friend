@@ -5,7 +5,7 @@ import unicodedata
 from core.module_base import ModuleBase
 from pathlib import Path
 from typing import List, Dict, Any
-from utils.logging import technical_log
+from utils.logging import technical_log, step_start, step_ok, step_error
 
 
 class Router:
@@ -34,6 +34,10 @@ class Router:
             technical_log("router", "no modules directory found")
             return
         
+        step_start("router", "loading modules")
+
+        loaded_count = 0
+
         for module_dir in modules_path.iterdir():
             if not module_dir.is_dir() or module_dir.name.startswith('_'):
                 continue
@@ -59,18 +63,21 @@ class Router:
                         instance = attr()
                         instance.on_load()
                         self.modules.append(instance)
+
+                        step_ok("router", f"module {module_dir.name} loaded")
+                        loaded_count += 1
                         
                         break
             
             except Exception as e:
-                technical_log("router", f"failed to load {module_dir.name}: {e}")
-        
+                step_error("router", f"module {module_dir.name} failed: {e}")
+
         self.modules.sort(
             key=lambda m: m.get_patterns().get('priority', 0),
             reverse=True
         )
-        
-        technical_log("router", f"loaded {len(self.modules)} modules")
+
+        step_ok("router", f"loaded {loaded_count} modules")
     
     def get_all_tools(self) -> List:
         """Collecte tous les LangChain Tools de tous les modules chargés"""
@@ -129,4 +136,4 @@ class Router:
     
     def get_goodbye_response(self) -> str:
         """Retourne une réponse d'au revoir"""
-        return "À plus tard."
+        return "À plu tard."

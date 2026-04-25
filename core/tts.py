@@ -3,7 +3,7 @@ import subprocess
 import threading
 
 from core.config_manager import ConfigManager
-from utils.logging import technical_log
+from utils.logging import technical_log, step_start, step_ok, step_error
 
 
 class TTS:
@@ -19,10 +19,16 @@ class TTS:
         self.running = True
         self._pending = threading.Event()
 
-        self.worker = threading.Thread(target=self._run, daemon=True)
-        self.worker.start()
+        step_start("tts", "initializing TTS engine")
 
-        technical_log("tts", "ready")
+        try:
+            self.worker = threading.Thread(target=self._run, daemon=True)
+            self.worker.start()
+
+            step_ok("tts", "TTS ready")
+        except Exception as e:
+            step_error("tts", f"TTS initialization failed: {e}")
+            raise
 
     def _run(self):
         while self.running:

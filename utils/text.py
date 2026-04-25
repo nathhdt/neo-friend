@@ -1,6 +1,6 @@
 import re
 
-from utils.colors import CYAN, RESET
+from utils.colors import CYAN, BOLD, BOLD_RESET, ITALIC, ITALIC_RESET, RESET
 
 
 def extract_sentence(buffer: str):
@@ -36,23 +36,17 @@ def speak_text(text: str, tts):
         tts.speak(buffer.strip())
 
 
-async def stream_llm_to_tts(llm_generator, tts, color=CYAN):
-    """
-    Stream le LLM vers le terminal et le TTS
-    
-    Args:
-        llm_generator: Async generator du LLM
-        tts: Instance du TTS
-        color: Couleur terminal (défaut: CYAN)
-    
-    Returns:
-        str: Le texte complet généré
-    """
+async def stream_llm_to_tts(llm_generator, tts, prefix, color=CYAN):
+    from utils.text import markdown_to_ansi
+
     buffer = ""
     full_response = ""
     
     async for chunk in llm_generator:
+        chunk = chunk.replace("\n", " ")
+
         print(f"{color}{chunk}{RESET}", end="", flush=True)
+
         buffer += chunk
         full_response += chunk
         
@@ -63,4 +57,18 @@ async def stream_llm_to_tts(llm_generator, tts, color=CYAN):
     if buffer.strip():
         tts.speak(buffer.strip())
     
+    styled = markdown_to_ansi(full_response)
+    
+    print("\r\033[K", end="")
+
+    print(f"{prefix}{styled}{RESET}")
+    
     return full_response
+
+
+def markdown_to_ansi(text: str) -> str:
+    text = re.sub(r"\*\*(.*?)\*\*", rf"{BOLD}\1{BOLD_RESET}", text)
+    
+    text = re.sub(r"\*(.*?)\*", rf"{ITALIC}\1{ITALIC_RESET}", text)
+    
+    return text
