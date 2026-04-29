@@ -1,11 +1,13 @@
 langchain-core
 langchain-ollama
 langgraph
+lancedb
 mlx-whisper
 numpy
 openwakeword
 onnxruntime
 pyyaml
+sentence-transformers
 silero-vad>=5.0.0
 sounddevice
 soundfile

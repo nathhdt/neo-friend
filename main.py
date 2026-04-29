@@ -1,14 +1,13 @@
 """
 Point d'entrée principal de Neo.
-Architecture simplifiée avec délégation aux gestionnaires.
 """
 import asyncio
-import sounddevice as sd
 
 from core.agent import Agent
 from core.config_manager import ConfigManager
 from core.conversation import ConversationManager
 from core.llm import LLM
+from core.memory import MemoryManager
 from core.router import Router
 from core.stt import STT
 from core.tts import TTS
@@ -28,6 +27,7 @@ class Neo:
         self.tts = TTS()
         self.wake = WakeWord()
         self.router = Router()
+        self.memory = MemoryManager()
 
         self.agent = Agent(
             llm=self.llm.llm,
@@ -40,13 +40,13 @@ class Neo:
             tts=self.tts,
             agent=self.agent,
             router=self.router,
+            memory=self.memory,
             config=self.config.config
         )
 
         self.wake_enabled = self.config.get("wake", "enabled", default=True)
 
     async def wait_for_wake_word(self):
-        """Attend le wake word si activé"""
         if self.wake_enabled:
             self.wake.listen()
             technical_log("wake", "wake word detected")
@@ -54,24 +54,16 @@ class Neo:
             technical_log("wake", "wake word disabled, conversation always active")
 
     async def handle_user_input(self, user_input: str) -> bool:
-        """
-        Traite l'entrée utilisateur
-
-        Returns:
-            True pour continuer, False pour arrêter l'app
-        """
-        if await self.conversation.handle_goodbye(user_input):
+        if await self.conversation.handle_goodbye(user_input, self.llm.llm):
             return True
 
         response = await self.conversation.process_input(user_input)
         self.conversation.add_turn(user_input, response)
-
         await self.conversation.wait_for_tts()
 
         return True
 
     async def conversation_loop(self):
-        """Boucle de conversation principale"""
         while True:
             try:
                 if not self.conversation.is_active():
@@ -84,6 +76,8 @@ class Neo:
 
                 if user_input is None:
                     print()
+                    await self.memory.extract(self.conversation.history.copy(), self.llm.llm)
+                    self.conversation.reset()
                     await asyncio.sleep(0.5)
                     continue
 
@@ -99,22 +93,22 @@ class Neo:
             except KeyboardInterrupt:
                 print(f"\n{CYAN}stopping...")
                 self.tts.stop()
+                import sounddevice as sd
                 sd.stop()
                 break
 
     def run(self):
-        """Lance Neo"""
         asyncio.run(self.conversation_loop())
 
 
 def main():
-    """Point d'entrée"""
     try:
         neo = Neo()
         neo.run()
     except KeyboardInterrupt:
         print()
     finally:
+        import sounddevice as sd
         sd.stop()
 
 

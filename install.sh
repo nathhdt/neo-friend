@@ -103,6 +103,25 @@ else
     exit 1
 fi
 
+# embedding model pull
+MEMORY_BLOCK=$(sed -n '/^memory:/,/^[a-zA-Z]/p' config.yaml)
+MEMORY_MODEL=$(echo "$MEMORY_BLOCK" | grep "model:" | head -n 1 | sed 's/.*model:[[:space:]]*//' | tr -d '\r\n[:space:]')
+MEMORY_LOCATION=$(echo "$MEMORY_BLOCK" | grep "location:" | head -n 1 | sed 's/.*location:[[:space:]]*//' | tr -d '\r\n[:space:]')
+if [ -z "$MEMORY_MODEL" ] || [ -z "$MEMORY_LOCATION" ]; then
+    echo -e "${RED}[memory] error: could not parse memory config from config.yaml${RESET}"
+    exit 1
+fi
+MEMORY_TARGET_DIR="$MEMORY_LOCATION/$MEMORY_MODEL"
+echo -ne "${BLUE}[memory] [..] pulling model ($MEMORY_MODEL)...${RESET}"
+mkdir -p "$MEMORY_TARGET_DIR"
+if stdbuf -oL -eL hf download "$MEMORY_MODEL" \
+    --local-dir "$MEMORY_TARGET_DIR" > /dev/null 2>&1; then
+    echo -e "\r\033[K${BLUE}[memory] ${GREEN}[ok]${BLUE} model ready: $MEMORY_MODEL${RESET}"
+else
+    echo -e "\r\033[K${RED}[memory] error: failed to pull model${RESET}"
+    exit 1
+fi
+
 # Python environment setup
 PYTHON_BIN="/opt/homebrew/bin/python3.12"
 if [ ! -x "$PYTHON_BIN" ]; then
@@ -146,6 +165,18 @@ then
     echo -e "\r${BLUE}[warmup] ${GREEN}[ok]${BLUE} openWakeWord warmed up      ${RESET}"
 else
     echo -e "\r${RED}[warmup] error: openWakeWord warmup failed${RESET}"
+fi
+
+# memory warmup
+echo -ne "${BLUE}[warmup] [..] warming up memory...${RESET}"
+if python - <<EOF > /dev/null 2>&1
+from core.memory import MemoryManager
+MemoryManager()
+EOF
+then
+    echo -e "\r${BLUE}[warmup] ${GREEN}[ok]${BLUE} memory warmed up            ${RESET}"
+else
+    echo -e "\r${RED}[warmup] error: memory warmup failed${RESET}"
 fi
 
 # launcher creation

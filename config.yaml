@@ -47,3 +47,11 @@ tts:
 conversation:
   inactivity_timeout: 30
   max_history_turns: 100
+
+memory:
+  enabled: true
+  model: sentence-transformers/all-MiniLM-L6-v2
+  location: models
+  db_path: data/memory
+  recall_top_k: 5
+  dedup_threshold: 0.95

@@ -16,16 +16,9 @@ class Agent:
     """Agent ReAct basé sur LangGraph avec tool calling"""
 
     def __init__(self, llm, tools: List, system_prompt: str):
-        """
-        Args:
-            llm: Instance ChatOllama
-            tools: Liste de LangChain Tools
-            system_prompt: System prompt pour l'agent
-        """
         config = ConfigManager()
 
-        self.max_iterations = int(config.get("agent", "max_iterations", default="5"))
-
+        self.max_iterations = int(config.get("agent", "max_iterations", default=5))
         self.system_prompt = system_prompt
         self.tools = tools
         self.tools_by_name = {t.name: t for t in tools}
@@ -47,12 +40,10 @@ class Agent:
         tools_by_name = self.tools_by_name
 
         async def agent_node(state: MessagesState):
-            """Appel LLM avec les tools bindés"""
             response = await llm.ainvoke(state["messages"])
             return {"messages": [response]}
 
         async def tool_node(state: MessagesState):
-            """Exécute les tool calls demandés par le LLM"""
             last = state["messages"][-1]
             results = []
 
@@ -80,28 +71,32 @@ class Agent:
             return {"messages": results}
 
         def should_continue(state: MessagesState) -> Literal["tools", "__end__"]:
-            """Route vers tools si le LLM veut appeler un outil, sinon END"""
             last = state["messages"][-1]
             if hasattr(last, "tool_calls") and last.tool_calls:
                 return "tools"
             return END
-        
+
         graph = StateGraph(MessagesState)
         graph.add_node("agent", agent_node)
         graph.add_node("tools", tool_node)
         graph.set_entry_point("agent")
-        graph.add_conditional_edges(
-            "agent",
-            should_continue,
-            {"tools": "tools", END: END}
-        )
+        graph.add_conditional_edges("agent", should_continue, {"tools": "tools", END: END})
         graph.add_edge("tools", "agent")
 
         return graph.compile()
 
-    def _build_messages(self, user_input: str, history: List[Dict[str, str]]) -> List:
-        """Construit la liste de messages LangChain depuis l'historique Neo"""
-        messages = [SystemMessage(content=self.system_prompt)]
+    def _build_messages(
+        self,
+        user_input: str,
+        history: List[Dict[str, str]],
+        memory_context: str = "",
+    ) -> List:
+        """Construit la liste de messages LangChain depuis l'historique Neo."""
+        system_content = self.system_prompt
+        if memory_context:
+            system_content = f"{memory_context}\n\n{system_content}"
+
+        messages = [SystemMessage(content=system_content)]
 
         for msg in history:
             if msg["role"] == "user":
@@ -112,21 +107,24 @@ class Agent:
         messages.append(HumanMessage(content=user_input))
         return messages
 
-    async def run(self, user_input: str, history: List[Dict[str, str]] = None):
+    async def run(
+        self,
+        user_input: str,
+        history: List[Dict[str, str]] = None,
+        memory_context: str = "",
+    ):
         """
         Exécute l'agent et yield les chunks de texte de la réponse finale.
 
-        Les tool calls sont exécutés silencieusement (loggés, pas streamés).
-        Seule la réponse du LLM est streamée chunk par chunk.
-
-        Yields:
-            str: Chunks de texte au fur et à mesure
+        Args:
+            user_input: message de l'utilisateur
+            history: historique de la conversation
+            memory_context: souvenirs pertinents à injecter dans le system prompt
         """
         if history is None:
             history = []
 
-        messages = self._build_messages(user_input, history)
-        
+        messages = self._build_messages(user_input, history, memory_context)
         config = {"recursion_limit": self.max_iterations * 2 + 1}
 
         async for msg, metadata in self.graph.astream(
