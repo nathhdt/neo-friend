@@ -147,6 +147,19 @@ while read -r lib || [[ -n "$lib" ]]; do
     fi
 done < requirements.txt
 
+# calendar macOS permission
+echo -ne "${BLUE}[permissions] [..] requesting calendar access...${RESET}"
+if python - <<EOF > /dev/null 2>&1
+from modules.calendar.module import CalendarModule
+m = CalendarModule()
+m.on_load()
+EOF
+then
+    echo -e "\r${BLUE}[permissions] ${GREEN}[ok]${BLUE} calendar access granted        ${RESET}"
+else
+    echo -e "\r${RED}[permissions] error: calendar access denied — authorize in System Settings → Privacy → Calendars${RESET}"
+fi
+
 # llm warmup
 echo -ne "${BLUE}[warmup] [..] warming up LLM model...${RESET}"
 if echo "hi" | ollama run "$MODEL_NAME" > /dev/null 2>&1; then
