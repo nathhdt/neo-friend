@@ -2,10 +2,12 @@
 Point d'entrée principal de Neo.
 """
 import asyncio
+import sounddevice as sd
 
 from core.agent import Agent
 from core.config_manager import ConfigManager
 from core.conversation import ConversationManager
+from core.earcons import EarconPlayer
 from core.llm import LLM
 from core.memory import MemoryManager
 from core.router import Router
@@ -27,6 +29,8 @@ class Neo:
         self.tts = TTS()
         self.wake = WakeWord()
         self.router = Router()
+        self.memory = MemoryManager()
+        self.earcons = EarconPlayer()
 
         self.agent = Agent(
             llm=self.llm.llm,
@@ -34,14 +38,13 @@ class Neo:
             system_prompt=self.llm.system_prompt
         )
 
-        self.memory = MemoryManager()
-
         self.conversation = ConversationManager(
             stt=self.stt,
             tts=self.tts,
             agent=self.agent,
             router=self.router,
             memory=self.memory,
+            earcons=self.earcons,
             config=self.config.config
         )
 
@@ -70,8 +73,13 @@ class Neo:
                 if not self.conversation.is_active():
                     await self.wait_for_wake_word()
                     self.conversation.activate()
+                
+                await self.conversation.wait_for_tts()
 
                 print(f"\n{GREEN}you > ", end="", flush=True)
+                
+                self.earcons.play("listening")
+                await asyncio.sleep(0.3)
 
                 user_input = await self.conversation.listen_with_timeout()
 
@@ -86,6 +94,9 @@ class Neo:
 
                 if not user_input:
                     continue
+                
+                if not self.router.detect_goodbye(user_input):
+                    self.earcons.play("captured")
 
                 should_continue = await self.handle_user_input(user_input)
                 if not should_continue:
@@ -94,7 +105,6 @@ class Neo:
             except KeyboardInterrupt:
                 print(f"\n{CYAN}stopping...")
                 self.tts.stop()
-                import sounddevice as sd
                 sd.stop()
                 break
 
@@ -109,7 +119,6 @@ def main():
     except KeyboardInterrupt:
         print()
     finally:
-        import sounddevice as sd
         sd.stop()
 
 

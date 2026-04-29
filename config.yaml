@@ -22,9 +22,6 @@ llm:
 
     TOOLS: Always use the available tools to answer questions about contacts, calendar, emails, time, or calculations. Never answer from memory or assumptions when a tool exists for the task.
 
-agent:
-  max_iterations: 5
-
 wake:
   enabled: true
   model: "hey_jarvis"
@@ -46,9 +43,18 @@ tts:
   voice: "Audrey (Premium)"
   rate: 250
 
+earcons:
+  listening: Tink.aiff
+  captured:  Pop.aiff
+  goodbye:   Glass.aiff
+  error:     Basso.aiff
+
 conversation:
   inactivity_timeout: 30
   max_history_turns: 100
+
+agent:
+  max_iterations: 5
 
 memory:
   enabled: true

@@ -20,12 +20,13 @@ class ConversationState(Enum):
 class ConversationManager:
     """Gère le cycle de vie complet d'une conversation"""
 
-    def __init__(self, stt, tts, agent, router, memory, config: Dict[str, Any]):
+    def __init__(self, stt, tts, agent, router, memory, earcons, config: Dict[str, Any]):
         self.stt = stt
         self.tts = tts
         self.agent = agent
         self.router = router
         self.memory = memory
+        self.earcons = earcons
 
         conv_cfg = config.get("conversation", {})
         self.inactivity_timeout = conv_cfg.get("inactivity_timeout", 30.0)
@@ -77,15 +78,13 @@ class ConversationManager:
         """
         Gère les messages d'adieu.
         Transition : ACTIVE -> GOODBYE -> IDLE.
-        Extrait les souvenirs en parallèle du TTS — aucun délai perçu.
-
-        Returns:
-            True si c'est un adieu
+        Earcon + TTS + extraction mémoire en parallèle.
         """
         if not self.router.detect_goodbye(user_input):
             return False
 
         self._set_state(ConversationState.GOODBYE)
+        self.earcons.play("goodbye")
         self.tts.speak(self.router.get_goodbye_response())
 
         history_snapshot = self.history.copy()
@@ -102,9 +101,6 @@ class ConversationManager:
         """
         Traite une entrée utilisateur via l'agent ReAct.
         Recall mémoire injecté dans le contexte avant génération.
-
-        Returns:
-            Réponse de l'assistant
         """
         memory_context = self.memory.recall(user_input)
 
