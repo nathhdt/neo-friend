@@ -4,6 +4,7 @@ import sounddevice as sd
 import soundfile as sf
 import tempfile
 
+from collections import deque
 from core.config_manager import ConfigManager
 from core.vad import SileroVAD
 from pathlib import Path
@@ -26,7 +27,7 @@ class STT:
         self.vad = SileroVAD()
         self.frame_size = vad_cfg.get("frame_size", 512)
         self.silence_threshold = vad_cfg.get("silence_threshold", 40)
-        
+
         self.should_stop = False
 
         step_start("stt", f"loading model: {self.model_name}")
@@ -61,11 +62,11 @@ class STT:
         recording = False
         silence_count = 0
 
-        pre_buffer = []
         pre_buffer_size = int(self.samplerate * 0.5)
+        pre_buffer = deque(maxlen=pre_buffer_size)
 
         def callback(indata, frames, time, status):
-            nonlocal buffer, recording, silence_count, pre_buffer
+            nonlocal buffer, recording, silence_count
 
             if self.should_stop:
                 return
@@ -74,10 +75,8 @@ class STT:
 
             if len(audio) < self.frame_size:
                 return
-            
+
             pre_buffer.extend(audio)
-            if len(pre_buffer) > pre_buffer_size:
-                pre_buffer = pre_buffer[-pre_buffer_size:]
 
             if self.vad.is_speech(audio):
                 if not recording:

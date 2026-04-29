@@ -1,5 +1,5 @@
 from core.config_manager import ConfigManager
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessageChunk
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, AIMessageChunk
 from langchain_ollama import ChatOllama
 from utils.logging import step_start, step_ok, step_error
 
@@ -19,7 +19,7 @@ class LLM:
             base_url=self.base_url,
             temperature=config.get("llm", "temperature", default=0.7),
         )
-        
+
         try:
             self.llm.invoke([HumanMessage(content="ping")])
             step_ok("llm", "Ollama connection OK")
@@ -37,7 +37,6 @@ class LLM:
             if msg["role"] == "user":
                 messages.append(HumanMessage(content=msg["content"]))
             elif msg["role"] == "assistant":
-                from langchain_core.messages import AIMessage
                 messages.append(AIMessage(content=msg["content"]))
 
         messages.append(HumanMessage(content=user_input))

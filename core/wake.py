@@ -14,15 +14,15 @@ class WakeWord:
         config = ConfigManager()
 
         self.enabled = config.get("wake", "enabled", default=True)
-        
+
         if self.enabled:
             download_models()
-            
+
             self.model_name = config.get("wake", "model", default="hey_jarvis")
             self.samplerate = config.get("wake", "samplerate", default=16000)
             self.chunk_size = config.get("wake", "chunk_size", default=1280)
             self.threshold = config.get("wake", "threshold", default=0.5)
-            
+
             self.model = Model(
                 wakeword_models=[self.model_name],
                 inference_framework="onnx"
@@ -33,8 +33,8 @@ class WakeWord:
         try:
             devices = sd.query_devices()
             for i, dev in enumerate(devices):
-                if dev['max_input_channels'] > 0 and 'Microphone' in dev['name']:
-                    if 'NoMachine' not in dev['name']:
+                if dev["max_input_channels"] > 0 and "Microphone" in dev["name"]:
+                    if "NoMachine" not in dev["name"]:
                         return i
         except Exception:
             pass
@@ -52,10 +52,10 @@ class WakeWord:
                     channels=1,
                     blocksize=self.chunk_size,
                     callback=callback,
-                    dtype='float32',
+                    dtype="float32",
                     device=device
                 )
-                
+
                 devnull = os.open(os.devnull, os.O_WRONLY)
                 stderr_backup = os.dup(2)
                 os.dup2(devnull, 2)
@@ -82,18 +82,15 @@ class WakeWord:
     def listen(self):
         if not self.enabled:
             return True
-        
-        self.model = Model(
-            wakeword_models=[self.model_name],
-            inference_framework="onnx"
-        )
-        
+
+        # Reset l'état interne du modèle entre deux écoutes
+        # (sinon les scores accumulés de la session précédente peuvent fausser la détection)
+        self.model.reset()
+
         detected = False
-        frame_count = 0
-        max_score_seen = 0.0
 
         def callback(indata, frames, time, status):
-            nonlocal detected, frame_count, max_score_seen
+            nonlocal detected
 
             if detected:
                 return
@@ -105,12 +102,7 @@ class WakeWord:
 
             prediction = self.model.predict(audio_int16)
 
-            frame_count += 1
-
-            for key, score in prediction.items():
-                if score > max_score_seen:
-                    max_score_seen = score
-                
+            for score in prediction.values():
                 if score > self.threshold:
                     detected = True
                     break

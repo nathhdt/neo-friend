@@ -1,6 +1,6 @@
 CYAN = "\033[96m"
 GREEN = "\033[92m"
-RED = "\033[091m"
+RED = "\033[91m"
 
 BOLD = "\033[1m"
 BOLD_RESET = "\033[22m"

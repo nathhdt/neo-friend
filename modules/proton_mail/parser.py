@@ -23,12 +23,12 @@ def get_email_body(msg) -> str:
             if part.get_content_type() == "text/plain":
                 try:
                     return part.get_payload(decode=True).decode("utf-8", errors="ignore")
-                except:  # noqa: E722
+                except Exception:
                     pass
     else:
         try:
             return msg.get_payload(decode=True).decode("utf-8", errors="ignore")
-        except:  # noqa: E722
+        except Exception:
             pass
 
     return ""
