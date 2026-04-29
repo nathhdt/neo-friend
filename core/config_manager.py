@@ -38,9 +38,6 @@ class ConfigManager:
         
         return value
     
-    def get_section(self, section: str) -> Dict[str, Any]:
-        return self._config.get(section, {})
-    
     @property
     def config(self) -> Dict[str, Any]:
         return self._config

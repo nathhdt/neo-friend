@@ -33,19 +33,23 @@ class ConversationManager:
         self.state = ConversationState.IDLE
         self.history: List[Dict[str, str]] = []
 
+    def _set_state(self, new_state: ConversationState):
+        """Transition d'état avec log"""
+        if self.state != new_state:
+            technical_log("conversation", f"state: {self.state.value} -> {new_state.value}")
+            self.state = new_state
+
     def reset(self):
-        """Réinitialise la conversation"""
-        self.state = ConversationState.IDLE
+        """Réinitialise la conversation (retour à IDLE)"""
+        self._set_state(ConversationState.IDLE)
         self.history = []
-        technical_log("conversation", "conversation reset")
 
     def activate(self):
         """Active la conversation"""
-        self.state = ConversationState.ACTIVE
-        technical_log("conversation", "conversation activated")
+        self._set_state(ConversationState.ACTIVE)
 
     def is_active(self) -> bool:
-        """Vérifie si la conversation est active"""
+        """Vrai uniquement quand on accepte de l'input utilisateur (pas pendant goodbye)"""
         return self.state == ConversationState.ACTIVE
 
     def add_turn(self, user_message: str, assistant_message: str):
@@ -80,23 +84,28 @@ class ConversationManager:
 
     async def handle_goodbye(self, user_input: str) -> bool:
         """
-        Gère les messages d'adieu
+        Gère les messages d'adieu.
+        Transition : ACTIVE -> GOODBYE (pendant le TTS) -> IDLE (reset final).
 
         Returns:
             True si c'est un adieu (conversation terminée)
         """
-        if self.router.detect_goodbye(user_input):
-            goodbye_msg = self.router.get_goodbye_response()
-            self.tts.speak(goodbye_msg)
+        if not self.router.detect_goodbye(user_input):
+            return False
 
-            while self.tts.is_speaking():
-                await asyncio.sleep(0.05)
+        # Entre en GOODBYE : is_active() devient False, plus aucun input accepté
+        self._set_state(ConversationState.GOODBYE)
 
-            self.reset()
-            await asyncio.sleep(2.0)
-            return True
+        goodbye_msg = self.router.get_goodbye_response()
+        self.tts.speak(goodbye_msg)
 
-        return False
+        while self.tts.is_speaking():
+            await asyncio.sleep(0.05)
+
+        # Fin du TTS : retour propre à IDLE
+        self.reset()
+        await asyncio.sleep(2.0)
+        return True
 
     async def process_input(self, user_input: str) -> str:
         """

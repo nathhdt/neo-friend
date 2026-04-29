@@ -1,5 +1,5 @@
 from core.config_manager import ConfigManager
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, AIMessageChunk
+from langchain_core.messages import HumanMessage
 from langchain_ollama import ChatOllama
 from utils.logging import step_start, step_ok, step_error
 
@@ -26,21 +26,3 @@ class LLM:
         except Exception as e:
             step_error("llm", f"Ollama connection failed: {e}")
             raise
-
-    async def think(self, user_input, history=None):
-        if history is None:
-            history = []
-
-        messages = [SystemMessage(content=self.system_prompt)]
-
-        for msg in history:
-            if msg["role"] == "user":
-                messages.append(HumanMessage(content=msg["content"]))
-            elif msg["role"] == "assistant":
-                messages.append(AIMessage(content=msg["content"]))
-
-        messages.append(HumanMessage(content=user_input))
-
-        async for chunk in self.llm.astream(messages):
-            if isinstance(chunk, AIMessageChunk) and chunk.content:
-                yield chunk.content

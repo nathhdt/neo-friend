@@ -1,5 +1,6 @@
 import importlib
 import re
+import unicodedata
 
 from core.module_base import ModuleBase
 from pathlib import Path
@@ -17,10 +18,7 @@ class Router:
     ]
 
     def __init__(self):
-        self.goodbye_regex = re.compile(
-            "|".join(self.GOODBYE_PATTERNS),
-            re.IGNORECASE
-        )
+        self.goodbye_regex = re.compile("|".join(self.GOODBYE_PATTERNS))
 
         self.modules: List[ModuleBase] = []
         self._load_modules()
@@ -80,10 +78,17 @@ class Router:
             tools.extend(module.get_tools())
         return tools
 
+    @staticmethod
+    def _normalize(text: str) -> str:
+        """Minuscules + suppression des accents, pour matcher les patterns ASCII"""
+        text = text.lower()
+        text = unicodedata.normalize("NFD", text)
+        return "".join(c for c in text if unicodedata.category(c) != "Mn")
+
     def detect_goodbye(self, text: str) -> bool:
         """Retourne True si l'user dit au revoir"""
-        return bool(self.goodbye_regex.search(text.lower()))
+        return bool(self.goodbye_regex.search(self._normalize(text)))
 
     def get_goodbye_response(self) -> str:
         """Retourne une réponse d'au revoir"""
-        return "À plu tard."
+        return "À plus tard."

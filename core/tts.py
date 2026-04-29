@@ -71,10 +71,6 @@ class TTS:
 
         return active_process or not self.queue.empty() or self._pending.is_set()
 
-    def wait_until_done(self):
-        while self.is_speaking():
-            pass
-
     def stop(self):
         self.running = False
 

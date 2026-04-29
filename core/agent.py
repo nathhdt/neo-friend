@@ -2,6 +2,7 @@
 Agent LangGraph.
 Boucle ReAct : LLM → conditional edge → Tool execution → LLM.
 """
+from core.config_manager import ConfigManager
 from langchain_core.messages import (
     SystemMessage, HumanMessage, AIMessage,
     AIMessageChunk, ToolMessage
@@ -14,8 +15,6 @@ from utils.logging import technical_log, step_start, step_ok, step_error
 class Agent:
     """Agent ReAct basé sur LangGraph avec tool calling"""
 
-    MAX_ITERATIONS = 5
-
     def __init__(self, llm, tools: List, system_prompt: str):
         """
         Args:
@@ -23,6 +22,10 @@ class Agent:
             tools: Liste de LangChain Tools
             system_prompt: System prompt pour l'agent
         """
+        config = ConfigManager()
+
+        self.max_iterations = int(config.get("agent", "max_iterations", default="5"))
+
         self.system_prompt = system_prompt
         self.tools = tools
         self.tools_by_name = {t.name: t for t in tools}
@@ -124,7 +127,7 @@ class Agent:
 
         messages = self._build_messages(user_input, history)
         
-        config = {"recursion_limit": self.MAX_ITERATIONS * 2 + 1}
+        config = {"recursion_limit": self.max_iterations * 2 + 1}
 
         async for msg, metadata in self.graph.astream(
             {"messages": messages},

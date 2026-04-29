@@ -20,6 +20,9 @@ llm:
 
     PERSONA: Direct, natural, terse. Spoken French register.
 
+agent:
+  max_iterations: 5
+
 wake:
   enabled: true
   model: "hey_jarvis"
