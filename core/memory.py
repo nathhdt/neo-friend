@@ -13,7 +13,9 @@ import os
 
 from core.config_manager import ConfigManager
 from datetime import datetime
+from langchain_core.messages import HumanMessage
 from pathlib import Path
+from sentence_transformers import SentenceTransformer
 from typing import List
 from utils.logging import step_start, step_ok, step_error, technical_log
 
@@ -99,7 +101,6 @@ class MemoryManager:
             stderr_backup = os.dup(2)
             os.dup2(devnull, 2)
             try:
-                from sentence_transformers import SentenceTransformer
                 self.encoder = SentenceTransformer(model_source)
             finally:
                 os.dup2(stderr_backup, 2)
@@ -224,7 +225,7 @@ class MemoryManager:
                 "importance": importance,
                 "created_at": datetime.now().isoformat(),
             }])
-            technical_log("memory", f"stored [{importance}]: {content[:60]}")
+            technical_log("memory", f"stored [{importance}]: {content[:60]}...")
 
     async def extract(self, history: List[dict], llm) -> None:
         """
@@ -247,7 +248,6 @@ class MemoryManager:
         prompt = EXTRACT_PROMPT.format(history=history_text)
 
         try:
-            from langchain_core.messages import HumanMessage
             response = await llm.ainvoke([HumanMessage(content=prompt)])
             raw = response.content.strip()
             

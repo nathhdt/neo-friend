@@ -1,3 +1,7 @@
+import EventKit
+from Foundation import NSDate
+import time
+import unicodedata
 import yaml
 
 from core.module_base import ModuleBase
@@ -5,7 +9,7 @@ from datetime import datetime, timedelta
 from langchain_core.tools import tool
 from pathlib import Path
 from typing import List, Dict, Any
-from utils.logging import step_ok, step_error, technical_log
+from utils.logging import step_ok, step_error
 
 
 class CalendarModule(ModuleBase):
@@ -26,10 +30,8 @@ class CalendarModule(ModuleBase):
     def on_load(self):
         """Initialise EventKit et demande les permissions d'accès au calendrier."""
         try:
-            import EventKit
             self.store = EventKit.EKEventStore.alloc().init()
 
-            # Demande d'autorisation (bloquant jusqu'à réponse de l'OS)
             granted = [False]
             done = [False]
 
@@ -42,11 +44,8 @@ class CalendarModule(ModuleBase):
                 handler
             )
 
-            # Attente synchrone de la réponse
-            import time
-            timeout = 10
             elapsed = 0
-            while not done[0] and elapsed < timeout:
+            while not done[0] and elapsed < 10:
                 time.sleep(0.1)
                 elapsed += 0.1
 
@@ -65,33 +64,102 @@ class CalendarModule(ModuleBase):
             self.store = None
 
     def _get_calendars(self):
-        """Retourne les objets EKCalendar filtrés par nom."""
         if not self.store:
             return []
-        import EventKit
         all_calendars = self.store.calendarsForEntityType_(EventKit.EKEntityTypeEvent)
         return [c for c in all_calendars if c.title() in self.calendar_names]
 
-    def _ekevent_to_dict(self, event) -> Dict[str, Any]:
-        """Convertit un EKEvent en dict sérialisable."""
-        start = event.startDate()
-        end = event.endDate()
-        return {
-            "title": str(event.title() or "Sans titre"),
-            "calendar": str(event.calendar().title()),
-            "start": str(start),
-            "end": str(end),
-            "location": str(event.location() or ""),
-            "notes": str(event.notes() or ""),
-            "event_id": str(event.eventIdentifier()),
-        }
-
     def _ns_date(self, dt: datetime):
-        """Convertit un datetime Python en NSDate."""
-        from Foundation import NSDate
-        import time
-        timestamp = dt.timestamp()
-        return NSDate.dateWithTimeIntervalSince1970_(timestamp)
+        return NSDate.dateWithTimeIntervalSince1970_(dt.timestamp())
+
+    @staticmethod
+    def _clean_title(title: str) -> str:
+        """Retire les emojis d'un titre via unicodedata."""
+        return "".join(c for c in title if unicodedata.category(c) not in ("So", "Sk", "Sm", "Cs")).strip()
+
+    @staticmethod
+    def _extract_city(location: str) -> str:
+        """Extrait la ville d'une adresse complète (dernier mot significatif)."""
+        if not location:
+            return ""
+        
+        parts = [p.strip() for p in location.split(",") if p.strip()]
+        return parts[-1] if parts else location
+
+    def _format_event(self, event) -> str:
+        """Formate un EKEvent en texte naturel pour le LLM."""
+        title = self._clean_title(str(event.title() or "Sans titre"))
+        calendar = str(event.calendar().title())
+        location = str(event.location() or "")
+
+        start_ns = event.startDate()
+        end_ns = event.endDate()
+        
+        start = datetime.fromtimestamp(start_ns.timeIntervalSince1970())
+        end = datetime.fromtimestamp(end_ns.timeIntervalSince1970())
+
+        now = datetime.now()
+        today = now.date()
+        tomorrow = today + timedelta(days=1)
+        
+        if start.date() == today:
+            date_str = "aujourd'hui"
+        elif start.date() == tomorrow:
+            date_str = "demain"
+        else:
+            days_fr = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+            months_fr = ["janvier", "février", "mars", "avril", "mai", "juin",
+                         "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+            date_str = f"{days_fr[start.weekday()]} {start.day} {months_fr[start.month - 1]}"
+        
+        end_normalized = end.replace(hour=0, minute=0, second=0) if (end.hour == 23 and end.minute == 59) else end
+        is_multiday = end_normalized.date() > start.date()
+
+        is_all_day = (start.hour == 0 and start.minute == 0 and
+                      (end.hour in (0, 23) and end.minute in (0, 59)))
+
+        if calendar == "Anniversaires" or is_all_day:
+            time_str = ""
+        elif is_multiday:
+            months_fr2 = ["janvier", "février", "mars", "avril", "mai", "juin",
+                          "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+            time_str = f" jusqu'au {end_normalized.day} {months_fr2[end_normalized.month - 1]}"
+        else:
+            time_str = f" à {start.strftime('%H:%M').replace(':00', 'h').replace(':', 'h')}"
+            if end.date() == start.date():
+                time_str += f" jusqu'à {end.strftime('%H:%M').replace(':00', 'h').replace(':', 'h')}"
+        
+        parts = [f"{title} — {date_str}{time_str}"]
+        city = self._extract_city(location)
+        if city:
+            parts.append(f"à {city}")
+        if calendar == "Anniversaires":
+            parts.append("(anniversaire)")
+        elif calendar != "Personnel":
+            parts.append(f"calendrier : {calendar}")
+
+        return ", ".join(parts)
+
+    def _fetch_events(self, start: datetime, end: datetime) -> str:
+        """Récupère et formate les événements entre deux dates."""
+        
+
+        predicate = self.store.predicateForEventsWithStartDate_endDate_calendars_(
+            self._ns_date(start),
+            self._ns_date(end),
+            self._get_calendars()
+        )
+        events = self.store.eventsMatchingPredicate_(predicate) or []
+
+        if not events:
+            return "Aucun événement sur cette période."
+
+        events = sorted(events, key=lambda e: e.startDate().timeIntervalSince1970())
+
+        lines = [self._format_event(e) for e in events]
+        count = len(lines)
+        intro = f"{count} événement{'s' if count > 1 else ''} trouvé{'s' if count > 1 else ''}, liste complète :"
+        return intro + "\n" + "\n".join(lines)
 
     def get_tools(self) -> List:
         module = self
@@ -139,13 +207,10 @@ class CalendarModule(ModuleBase):
             if not module.store:
                 return "Calendrier non disponible."
             try:
-                import EventKit
-
                 calendars = module._get_calendars()
                 if not calendars:
                     return "Aucun calendrier trouvé."
 
-                # Sélection du calendrier cible
                 target = None
                 if calendar_name:
                     target = next((c for c in calendars if c.title() == calendar_name), None)
@@ -164,18 +229,13 @@ class CalendarModule(ModuleBase):
                 if notes:
                     event.setNotes_(notes)
 
-                error_ptr = None
                 success = module.store.saveEvent_span_commit_error_(
-                    event,
-                    EventKit.EKSpanThisEvent,
-                    True,
-                    error_ptr
+                    event, EventKit.EKSpanThisEvent, True, None
                 )
 
                 if success:
                     return f"Événement '{title}' créé le {start_dt.strftime('%d/%m à %Hh%M')} dans '{target.title()}'."
-                else:
-                    return "Échec de la création de l'événement."
+                return "Échec de la création de l'événement."
 
             except Exception as e:
                 return f"Erreur: {e}"
@@ -190,9 +250,6 @@ class CalendarModule(ModuleBase):
             if not module.store:
                 return "Calendrier non disponible."
             try:
-                import EventKit
-
-                # Recherche sur les 365 prochains jours
                 start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
                 end = start + timedelta(days=365)
 
@@ -203,7 +260,6 @@ class CalendarModule(ModuleBase):
                 )
                 events = module.store.eventsMatchingPredicate_(predicate) or []
 
-                # Recherche insensible à la casse
                 title_lower = title.lower()
                 match = next(
                     (e for e in events if title_lower in str(e.title() or "").lower()),
@@ -214,48 +270,15 @@ class CalendarModule(ModuleBase):
                     return f"Aucun événement trouvé avec le titre '{title}'."
 
                 event_title = str(match.title())
-                error_ptr = None
                 success = module.store.removeEvent_span_commit_error_(
-                    match,
-                    EventKit.EKSpanThisEvent,
-                    True,
-                    error_ptr
+                    match, EventKit.EKSpanThisEvent, True, None
                 )
 
                 if success:
                     return f"Événement '{event_title}' supprimé."
-                else:
-                    return "Échec de la suppression."
+                return "Échec de la suppression."
 
             except Exception as e:
                 return f"Erreur: {e}"
 
         return [list_today_events, list_upcoming_events, create_event, delete_event]
-
-    def _fetch_events(self, start: datetime, end: datetime) -> str:
-        """Récupère et formate les événements entre deux dates."""
-        import EventKit
-
-        predicate = self.store.predicateForEventsWithStartDate_endDate_calendars_(
-            self._ns_date(start),
-            self._ns_date(end),
-            self._get_calendars()
-        )
-        events = self.store.eventsMatchingPredicate_(predicate) or []
-
-        if not events:
-            return "Aucun événement sur cette période."
-
-        # Tri par date de début
-        events = sorted(events, key=lambda e: str(e.startDate()))
-
-        lines = []
-        for e in events:
-            d = self._ekevent_to_dict(e)
-            # Format lisible pour le LLM
-            lines.append(
-                f"- {d['title']} | {d['calendar']} | {d['start']} → {d['end']}"
-                + (f" | {d['location']}" if d['location'] else "")
-            )
-
-        return "\n".join(lines)

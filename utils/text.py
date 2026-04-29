@@ -5,7 +5,7 @@ from utils.colors import CYAN, BOLD, BOLD_RESET, ITALIC, ITALIC_RESET, RESET
 
 
 def extract_sentence(buffer: str):
-    """Extrait une phrase, un retour à la ligne, ou un bullet point"""
+    """Extrait une phrase complète ou une ligne du buffer."""
     if "\n" in buffer:
         parts = buffer.split("\n", 1)
         sentence = parts[0].strip()
@@ -20,6 +20,14 @@ def extract_sentence(buffer: str):
         return sentence, rest
 
     return None, buffer
+
+
+def _clean_for_tts(text: str) -> str:
+    """Retire les marqueurs markdown et tirets de liste pour le TTS."""
+    text = re.sub(r"^\s*[-•]\s*", "", text)
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.*?)\*", r"\1", text)
+    return text.strip()
 
 
 def markdown_to_ansi(text: str) -> str:
@@ -39,7 +47,7 @@ async def _thinking_animation(prefix: str, stop_event: asyncio.Event, color=CYAN
             await asyncio.wait_for(stop_event.wait(), timeout=0.2)
         except asyncio.TimeoutError:
             pass
-    
+
     print("\r\033[K", end="", flush=True)
 
 
@@ -59,20 +67,19 @@ async def stream_llm_to_tts(llm_generator, tts, prefix, color=CYAN):
             await animation_task
             print(f"{color}{prefix}", end="", flush=True)
             first_chunk = False
-
-        chunk = chunk.replace("\n", " ")
+        
         print(f"{color}{chunk}{RESET}", end="", flush=True)
-
-        buffer += chunk
+        
+        buffer += chunk.replace("\n", " ")
         full_response += chunk
 
         sentence, buffer = extract_sentence(buffer)
         if sentence and len(sentence) > 5:
-            tts.speak(sentence)
+            tts.speak(_clean_for_tts(sentence))
 
     if not first_chunk:
         if buffer.strip():
-            tts.speak(buffer.strip())
+            tts.speak(_clean_for_tts(buffer.strip()))
 
         styled = markdown_to_ansi(full_response)
         print("\r\033[K", end="")
