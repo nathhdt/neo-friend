@@ -20,6 +20,8 @@ llm:
  
     PERSONA: Direct, natural, terse. Spoken French register.
 
+    TOOLS: Always use the available tools to answer questions about contacts, calendar, emails, time, or calculations. Never answer from memory or assumptions when a tool exists for the task.
+
 agent:
   max_iterations: 5
 

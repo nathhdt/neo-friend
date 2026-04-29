@@ -27,13 +27,14 @@ class Neo:
         self.tts = TTS()
         self.wake = WakeWord()
         self.router = Router()
-        self.memory = MemoryManager()
 
         self.agent = Agent(
             llm=self.llm.llm,
             tools=self.router.get_all_tools(),
             system_prompt=self.llm.system_prompt
         )
+
+        self.memory = MemoryManager()
 
         self.conversation = ConversationManager(
             stt=self.stt,

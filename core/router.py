@@ -61,7 +61,7 @@ class Router:
                         instance.on_load()
                         self.modules.append(instance)
 
-                        step_ok("router", f"module loaded : '{module_dir.name}'")
+                        step_ok("router", f"module loaded: '{module_dir.name}'")
                         loaded_count += 1
 
                         break

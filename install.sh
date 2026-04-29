@@ -147,7 +147,7 @@ while read -r lib || [[ -n "$lib" ]]; do
     fi
 done < requirements.txt
 
-# calendar macOS permission
+# macOS calendar permission
 echo -ne "${BLUE}[permissions] [..] requesting calendar access...${RESET}"
 if python - <<EOF > /dev/null 2>&1
 from modules.calendar.module import CalendarModule
@@ -155,9 +155,22 @@ m = CalendarModule()
 m.on_load()
 EOF
 then
-    echo -e "\r${BLUE}[permissions] ${GREEN}[ok]${BLUE} calendar access granted        ${RESET}"
+    echo -e "\r${BLUE}[permissions] ${GREEN}[ok]${BLUE} macOS calendar access granted        ${RESET}"
 else
-    echo -e "\r${RED}[permissions] error: calendar access denied — authorize in System Settings → Privacy → Calendars${RESET}"
+    echo -e "\r${RED}[permissions] error: macOS calendar access denied — authorize in System Settings → Privacy → Calendars${RESET}"
+fi
+
+# macOS contacts permission
+echo -ne "${BLUE}[permissions] [..] requesting macOS contacts access...${RESET}"
+if python - <<EOF > /dev/null 2>&1
+from modules.contacts.module import ContactsModule
+m = ContactsModule()
+m.on_load()
+EOF
+then
+    echo -e "\r${BLUE}[permissions] ${GREEN}[ok]${BLUE} macOS contacts access granted                ${RESET}"
+else
+    echo -e "\r${RED}[permissions] error: macOS contacts access denied — authorize in System Settings → Privacy → Contacts${RESET}"
 fi
 
 # llm warmup

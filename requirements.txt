@@ -1,10 +1,12 @@
 langchain-core
 langchain-ollama
 langgraph
+jellyfish
 lancedb
 mlx-whisper
 numpy
 openwakeword
+pyobjc-framework-Contacts
 pyobjc-framework-EventKit
 onnxruntime
 pyyaml
