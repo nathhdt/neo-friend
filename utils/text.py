@@ -37,11 +37,14 @@ def markdown_to_ansi(text: str) -> str:
 
 
 async def _thinking_animation(prefix: str, stop_event: asyncio.Event, color=CYAN):
-    """Affiche '.' '..' '...' en boucle jusqu'à ce que stop_event soit set."""
+    """
+    Affiche '.' '..' '...' en boucle sur la ligne courante.
+    Utilise \r\033[K pour effacer proprement avant chaque réécriture.
+    """
     dots = [".  ", ".. ", "..."]
     i = 0
     while not stop_event.is_set():
-        print(f"\r{color}{prefix}{dots[i % 3]}{RESET}", end="", flush=True)
+        print(f"\r\033[K{color}{prefix}{dots[i % 3]}{RESET}", end="", flush=True)
         i += 1
         try:
             await asyncio.wait_for(stop_event.wait(), timeout=0.2)
@@ -65,11 +68,15 @@ async def stream_llm_to_tts(llm_generator, tts, prefix, color=CYAN):
         if first_chunk:
             stop_animation.set()
             await animation_task
+            # Ligne vide de séparation si des logs ont été affichés (curseur pas en début de ligne)
+            print(f"\r\033[K")
             print(f"{color}{prefix}", end="", flush=True)
             first_chunk = False
-        
+
+        # Affichage : on garde les \n pour la console
         print(f"{color}{chunk}{RESET}", end="", flush=True)
-        
+
+        # Buffer : on remplace \n par espace uniquement pour le découpage de phrases
         buffer += chunk.replace("\n", " ")
         full_response += chunk
 

@@ -3,13 +3,25 @@ Agent LangGraph.
 Boucle ReAct : LLM → conditional edge → Tool execution → LLM.
 """
 from core.config_manager import ConfigManager
+from datetime import datetime
 from langchain_core.messages import (
     SystemMessage, HumanMessage, AIMessage,
     AIMessageChunk, ToolMessage
 )
 from langgraph.graph import StateGraph, MessagesState, END
 from typing import Literal, List, Dict
-from utils.logging import technical_log, step_start, step_ok, step_error
+from utils.colors import CYAN, RESET
+from utils.logging import step_start, step_ok, step_error
+
+
+def _tool_log(message: str):
+    """
+    Efface la ligne d'animation courante, affiche le log,
+    puis laisse le curseur sur une nouvelle ligne pour que
+    l'animation se réaffiche dessous au prochain tick.
+    """
+    now = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    print(f"\r\033[K{CYAN}{now} - [agent] {message}{RESET}")
 
 
 class Agent:
@@ -34,8 +46,6 @@ class Agent:
             raise
 
     def _build_graph(self):
-        """Construit le StateGraph : agent → tools → agent → ... → END"""
-
         llm = self.llm_with_tools
         tools_by_name = self.tools_by_name
 
@@ -50,7 +60,8 @@ class Agent:
             for tc in last.tool_calls:
                 name = tc["name"]
                 args = tc["args"]
-                technical_log("agent", f"→ {name}({args})")
+
+                _tool_log(f"→ {name}({args})")
 
                 tool = tools_by_name.get(name)
                 if tool:
@@ -58,11 +69,11 @@ class Agent:
                         result = tool.invoke(args)
                     except Exception as e:
                         result = f"Erreur: {e}"
-                        technical_log("agent", f"← {name} error: {e}")
+                        _tool_log(f"← {name} error: {e}")
                 else:
                     result = f"Outil inconnu : {name}"
 
-                technical_log("agent", f"← {name} done")
+                _tool_log(f"← {name} result: {str(result)[:50]}")
                 results.append(ToolMessage(
                     content=str(result),
                     tool_call_id=tc["id"]
@@ -91,7 +102,6 @@ class Agent:
         history: List[Dict[str, str]],
         memory_context: str = "",
     ) -> List:
-        """Construit la liste de messages LangChain depuis l'historique Neo."""
         system_content = self.system_prompt
         if memory_context:
             system_content = f"{memory_context}\n\n{system_content}"
@@ -113,14 +123,6 @@ class Agent:
         history: List[Dict[str, str]] = None,
         memory_context: str = "",
     ):
-        """
-        Exécute l'agent et yield les chunks de texte de la réponse finale.
-
-        Args:
-            user_input: message de l'utilisateur
-            history: historique de la conversation
-            memory_context: souvenirs pertinents à injecter dans le system prompt
-        """
         if history is None:
             history = []
 
