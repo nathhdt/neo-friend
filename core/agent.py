@@ -73,7 +73,7 @@ class Agent:
                 else:
                     result = f"Outil inconnu : {name}"
 
-                _tool_log(f"← {name} result: {str(result)[:50]}")
+                _tool_log(f"← {name} result: {str(result)[:40]}...")
                 results.append(ToolMessage(
                     content=str(result),
                     tool_call_id=tc["id"]

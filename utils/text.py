@@ -68,15 +68,14 @@ async def stream_llm_to_tts(llm_generator, tts, prefix, color=CYAN):
         if first_chunk:
             stop_animation.set()
             await animation_task
-            # Ligne vide de séparation si des logs ont été affichés (curseur pas en début de ligne)
-            print(f"\r\033[K")
+            
+            print("\r\033[K")
             print(f"{color}{prefix}", end="", flush=True)
+
             first_chunk = False
-
-        # Affichage : on garde les \n pour la console
+        
         print(f"{color}{chunk}{RESET}", end="", flush=True)
-
-        # Buffer : on remplace \n par espace uniquement pour le découpage de phrases
+        
         buffer += chunk.replace("\n", " ")
         full_response += chunk
 
@@ -87,10 +86,13 @@ async def stream_llm_to_tts(llm_generator, tts, prefix, color=CYAN):
     if not first_chunk:
         if buffer.strip():
             tts.speak(_clean_for_tts(buffer.strip()))
-
-        styled = markdown_to_ansi(full_response)
-        print("\r\033[K", end="")
-        print(f"{color}{prefix}{styled}{RESET}")
+        
+        if "\n" not in full_response:
+            styled = markdown_to_ansi(full_response)
+            print("\r\033[K", end="")
+            print(f"{color}{prefix}{styled}{RESET}")
+        else:
+            print()
     else:
         stop_animation.set()
         await animation_task
