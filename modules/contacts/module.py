@@ -90,23 +90,19 @@ class ContactsModule(ModuleBase):
 
         q_tokens = q.split()
         c_tokens = c.split()
-
-        # Jaccard textuel
+        
         q_set = set(q_tokens)
         c_set = set(c_tokens)
         common_text = q_set & c_set
         jaccard = len(common_text) / len(q_set | c_set) if (q_set | c_set) else 0.0
-
-        # Score phonétique : pour chaque token de la requête,
-        # cherche un token du contact avec le même code Soundex
+        
         q_soundex = [ContactsModule._soundex_token(t) for t in q_tokens if len(t) > 1]
         c_soundex = [ContactsModule._soundex_token(t) for t in c_tokens if len(t) > 1]
         c_soundex_set = set(c_soundex)
 
         phonetic_matches = sum(1 for qs in q_soundex if qs in c_soundex_set)
         phonetic_score = phonetic_matches / len(q_soundex) if q_soundex else 0.0
-
-        # Score final : max des deux approches
+        
         return max(jaccard, phonetic_score * 0.9)
 
     def _find_best_matches(self, query: str, top_k: int = 3, threshold: float = 0.4) -> List[Any]:
