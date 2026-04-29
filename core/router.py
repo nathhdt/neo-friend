@@ -61,13 +61,13 @@ class Router:
                         instance.on_load()
                         self.modules.append(instance)
 
-                        step_ok("router", f"module {module_dir.name} loaded")
+                        step_ok("router", f"module loaded : '{module_dir.name}'")
                         loaded_count += 1
 
                         break
 
             except Exception as e:
-                step_error("router", f"module {module_dir.name} failed: {e}")
+                step_error("router", f"module failed : '{module_dir.name}' ({e})")
 
         step_ok("router", f"loaded {loaded_count} modules")
 
