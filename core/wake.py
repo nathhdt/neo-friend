@@ -82,9 +82,7 @@ class WakeWord:
     def listen(self):
         if not self.enabled:
             return True
-
-        # Reset l'état interne du modèle entre deux écoutes
-        # (sinon les scores accumulés de la session précédente peuvent fausser la détection)
+        
         self.model.reset()
 
         detected = False

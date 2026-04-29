@@ -92,8 +92,7 @@ class ConversationManager:
         """
         if not self.router.detect_goodbye(user_input):
             return False
-
-        # Entre en GOODBYE : is_active() devient False, plus aucun input accepté
+        
         self._set_state(ConversationState.GOODBYE)
 
         goodbye_msg = self.router.get_goodbye_response()
@@ -101,8 +100,7 @@ class ConversationManager:
 
         while self.tts.is_speaking():
             await asyncio.sleep(0.05)
-
-        # Fin du TTS : retour propre à IDLE
+        
         self.reset()
         await asyncio.sleep(2.0)
         return True
