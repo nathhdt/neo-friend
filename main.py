@@ -3,6 +3,7 @@ Point d'entrée principal de Neo.
 Architecture simplifiée avec délégation aux gestionnaires.
 """
 import asyncio
+import sounddevice as sd
 
 from core.agent import Agent
 from core.config_manager import ConfigManager
@@ -98,7 +99,6 @@ class Neo:
             except KeyboardInterrupt:
                 print(f"\n{CYAN}stopping...")
                 self.tts.stop()
-                import sounddevice as sd
                 sd.stop()
                 break
 
@@ -115,7 +115,6 @@ def main():
     except KeyboardInterrupt:
         print()
     finally:
-        import sounddevice as sd
         sd.stop()
 
 

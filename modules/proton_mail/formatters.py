@@ -43,5 +43,5 @@ def format_relative_date(date_str: str) -> str:
         if days < 30:
             return f"il y a environ {days // 7} semaines"
         return f"il y a environ {days // 30} mois"
-    except:  # noqa: E722
+    except Exception:
         return "récemment"
