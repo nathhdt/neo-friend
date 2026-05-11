@@ -19,6 +19,7 @@ from neo.infra.config import ConfigManager
 from neo.infra.router import Router
 from neo.runtime.background import BackgroundRunner
 from neo.runtime.event_bus import EventBus
+from neo.runtime.scheduler import Scheduler
 from neo.shared.colors import CYAN, GREEN, RESET
 from neo.shared.logging import technical_log
 
@@ -34,6 +35,10 @@ class Neo:
         # runtime
         self.background = BackgroundRunner()
         self.event_bus = EventBus(self.background)
+        self.scheduler = Scheduler(
+            self.event_bus,
+            self.config.get("schedules", default=[]) or []
+        )
 
         # adapters
         self.llm = LLM()
@@ -125,14 +130,27 @@ class Neo:
                     break
 
             except KeyboardInterrupt:
-                print(f"\n{CYAN}stopping...")
-                self.tts.stop()
-                sd.stop()
-                await self.background.shutdown()
                 break
 
+    async def _run(self):
+        """Lance le scheduler et la boucle de conversation en parallèle."""
+        scheduler_task = asyncio.create_task(self.scheduler.run())
+
+        try:
+            await self.conversation_loop()
+        finally:
+            print(f"\n{CYAN}stopping...{RESET}")
+            scheduler_task.cancel()
+            try:
+                await scheduler_task
+            except asyncio.CancelledError:
+                pass
+            self.tts.stop()
+            sd.stop()
+            await self.background.shutdown()
+
     def run(self):
-        asyncio.run(self.conversation_loop())
+        asyncio.run(self._run())
 
 
 def main():
