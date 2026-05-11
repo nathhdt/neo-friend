@@ -44,7 +44,7 @@ else
     exit 1
 fi
 
-DEPENDENCIES=(python@3.12 ollama hf portaudio ffmpeg)
+DEPENDENCIES=(ollama hf portaudio ffmpeg)
 
 for pkg in "${DEPENDENCIES[@]}"; do
     if brew list "$pkg" &>/dev/null; then
@@ -122,35 +122,32 @@ else
     exit 1
 fi
 
-# Python environment setup
-PYTHON_BIN="/opt/homebrew/bin/python3.12"
-if [ ! -x "$PYTHON_BIN" ]; then
-    echo -e "${RED}[python] python3.12 not found${RESET}"
+# uv package manager
+echo -ne "${BLUE}[sys] [..] checking uv installation...${RESET}"
+if command -v uv &> /dev/null; then
+    echo -e "\r\033[K${BLUE}[sys] ${GREEN}[ok]${BLUE} uv is already installed${RESET}"
+else
+    echo -e "\r\033[K${BLUE}[sys] [..] installing uv...${RESET}"
+    curl -LsSf https://astral.sh/uv/install.sh | sh 2>&1 | prefix "[sys]"
+    source "$HOME/.local/bin/env" 2>/dev/null || export PATH="$HOME/.local/bin:$PATH"
+    echo -e "${BLUE}[sys] ${GREEN}[ok]${BLUE} uv installed${RESET}"
+fi
+
+# Python environment + dependencies
+echo -ne "${BLUE}[python] [..] syncing environment and dependencies...${RESET}"
+if uv sync --python 3.12 > /dev/null 2>&1; then
+    echo -e "\r\033[K${BLUE}[python] ${GREEN}[ok]${BLUE} environment ready, all dependencies installed${RESET}"
+else
+    echo -e "\r\033[K${RED}[python] error: failed to sync dependencies${RESET}"
     exit 1
 fi
-$PYTHON_BIN -m venv venv
-source venv/bin/activate
-pip install --upgrade pip > /dev/null 2>&1
 
-# Python dependencies
-while read -r lib || [[ -n "$lib" ]]; do
-    [[ -z "$lib" || "$lib" =~ ^# ]] && continue
-    
-    lib_name=$(echo "$lib" | cut -d'=' -f1 | cut -d'>' -f1 | cut -d'<' -f1)
-    
-    if pip show "$lib_name" &>/dev/null; then
-        echo -e "${BLUE}[python] ${GREEN}[ok]${BLUE} $lib_name is already installed"
-    else
-        echo -ne "${BLUE}[python] [..] installing $lib...${RESET}"
-        pip install "$lib" > /dev/null 2>&1
-        echo -e "\r${BLUE}[python] ${GREEN}[ok]${BLUE} $lib installed             "
-    fi
-done < requirements.txt
+export PYTHONPATH="${PYTHONPATH:-}:$(pwd)/src"
 
 # macOS calendar permission
 echo -ne "${BLUE}[permissions] [..] requesting calendar access...${RESET}"
-if python - <<EOF > /dev/null 2>&1
-from modules.calendar.module import CalendarModule
+if .venv/bin/python - <<EOF > /dev/null 2>&1
+from neo.modules.calendar.module import CalendarModule
 m = CalendarModule()
 m.on_load()
 EOF
@@ -162,8 +159,8 @@ fi
 
 # macOS contacts permission
 echo -ne "${BLUE}[permissions] [..] requesting macOS contacts access...${RESET}"
-if python - <<EOF > /dev/null 2>&1
-from modules.contacts.module import ContactsModule
+if .venv/bin/python - <<EOF > /dev/null 2>&1
+from neo.modules.contacts.module import ContactsModule
 m = ContactsModule()
 m.on_load()
 EOF
@@ -183,8 +180,8 @@ fi
 
 # openWakeWord warmup
 echo -ne "${BLUE}[warmup] [..] warming up openWakeWord...${RESET}"
-if python - <<EOF > /dev/null 2>&1
-from core.wake import WakeWord
+if uv run python - <<EOF > /dev/null 2>&1
+from neo.adapters.wake import WakeWord
 WakeWord()
 EOF
 then
@@ -195,8 +192,8 @@ fi
 
 # memory warmup
 echo -ne "${BLUE}[warmup] [..] warming up memory...${RESET}"
-if python - <<EOF > /dev/null 2>&1
-from core.memory import MemoryManager
+if uv run python - <<EOF > /dev/null 2>&1
+from neo.adapters.lancedb_memory import MemoryManager
 MemoryManager()
 EOF
 then
@@ -205,13 +202,4 @@ else
     echo -e "\r${RED}[warmup] error: memory warmup failed${RESET}"
 fi
 
-# launcher creation
-cat <<EOF > neo
-#!/bin/bash
-export PYTHONPATH=\$PYTHONPATH:\$(pwd)
-\$(pwd)/venv/bin/python \$(pwd)/main.py "\$@"
-EOF
-
-chmod +x neo
-
-echo -e "${BLUE}installation complete, start with: ./neo${RESET}"
+echo -e "${BLUE}installation complete, start with: uv run neo${RESET}"

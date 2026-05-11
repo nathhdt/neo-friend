@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/neo"]
+
+[project]
+name = "neo-friend"
+version = "0.1.0"
+description = "macOS personal assistant using local ML-based models"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "nathhdt", email = "inbox@nathhdt.com" },
+]
+dependencies = [
+    "langchain-core",
+    "langchain-ollama",
+    "langgraph",
+    "jellyfish",
+    "lancedb",
+    "mlx-whisper",
+    "numpy",
+    "openwakeword",
+    "pyobjc-framework-Contacts",
+    "pyobjc-framework-EventKit",
+    "onnxruntime<1.26",
+    "pyyaml",
+    "sentence-transformers",
+    "silero-vad>=5.0.0",
+    "sounddevice",
+    "soundfile",
+    "torch>=2.0.0",
+]
+
+[project.scripts]
+neo = "neo.__main__:main"
+
+[dependency-groups]
+dev = ["ruff"]
+
+[tool.uv]
+environments = ["sys_platform == 'darwin' and platform_machine == 'arm64'"]

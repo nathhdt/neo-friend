@@ -1,0 +1,118 @@
+import mlx_whisper
+import numpy as np
+import sounddevice as sd
+import soundfile as sf
+import tempfile
+
+from collections import deque
+from pathlib import Path
+
+from neo.domain.ports import STTPort
+from neo.adapters.silero_vad import SileroVAD
+from neo.infra.config import ConfigManager
+from neo.shared.logging import step_start, step_ok, step_error
+
+
+class STT(STTPort):
+    def __init__(self):
+        config = ConfigManager()
+
+        stt_cfg = config.get("stt")
+        vad_cfg = config.get("vad")
+
+        self.model_name = stt_cfg["model"]
+        self.model_dir = stt_cfg["location"]
+        self.model_path = Path(f"{self.model_dir}/{self.model_name}")
+
+        self.samplerate = stt_cfg.get("samplerate", 16000)
+
+        self.vad = SileroVAD()
+        self.frame_size = vad_cfg.get("frame_size", 512)
+        self.silence_threshold = vad_cfg.get("silence_threshold", 40)
+
+        self.should_stop = False
+
+        step_start("stt", f"loading model: {self.model_name}")
+
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
+                sf.write(tmp.name, np.zeros(self.samplerate), self.samplerate)
+                mlx_whisper.transcribe(
+                    tmp.name,
+                    path_or_hf_repo=self.model_path
+                )
+            step_ok("stt", f"model ready: {self.model_name}")
+        except Exception as e:
+            step_error("stt", f"failed to load model: {e}")
+            raise
+
+    def transcribe(self, audio):
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
+            sf.write(tmp.name, audio, self.samplerate)
+            result = mlx_whisper.transcribe(
+                tmp.name,
+                path_or_hf_repo=self.model_path
+            )
+        return result["text"].strip()
+
+    def stop_listening(self):
+        self.should_stop = True
+
+    def listen(self):
+        self.should_stop = False
+        buffer = []
+        recording = False
+        silence_count = 0
+
+        pre_buffer_size = int(self.samplerate * 0.5)
+        pre_buffer = deque(maxlen=pre_buffer_size)
+
+        def callback(indata, frames, time, status):
+            nonlocal buffer, recording, silence_count
+
+            if self.should_stop:
+                return
+
+            audio = indata[:, 0]
+
+            if len(audio) < self.frame_size:
+                return
+
+            pre_buffer.extend(audio)
+
+            if self.vad.is_speech(audio):
+                if not recording:
+                    buffer.extend(pre_buffer)
+
+                recording = True
+                silence_count = 0
+                buffer.extend(audio)
+
+            elif recording:
+                silence_count += 1
+                buffer.extend(audio)
+
+        try:
+            with sd.InputStream(
+                samplerate=self.samplerate,
+                channels=1,
+                blocksize=self.frame_size,
+                callback=callback
+            ):
+                while True:
+                    if self.should_stop:
+                        break
+                    if recording and silence_count >= self.silence_threshold:
+                        break
+                    sd.sleep(100)
+
+        except KeyboardInterrupt:
+            sd.stop()
+            raise
+
+        if len(buffer) == 0:
+            return ""
+
+        audio = np.array(buffer, dtype=np.float32)
+
+        return self.transcribe(audio)
