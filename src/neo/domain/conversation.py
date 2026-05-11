@@ -7,7 +7,8 @@ import asyncio
 from enum import Enum
 from typing import Optional, Dict, Any, List
 
-from neo.domain.ports import STTPort, TTSPort, MemoryPort, EarconsPort
+from neo.domain.events import ConversationEnded
+from neo.domain.ports import STTPort, TTSPort, MemoryPort, EarconsPort, EventBusPort
 from neo.shared.colors import CYAN
 from neo.shared.logging import technical_log
 from neo.shared.text import stream_llm_to_tts
@@ -23,13 +24,15 @@ class ConversationManager:
     """Gère le cycle de vie complet d'une conversation"""
 
     def __init__(self, stt: STTPort, tts: TTSPort, agent, router,
-                 memory: MemoryPort, earcons: EarconsPort, config: Dict[str, Any]):
+                 memory: MemoryPort, earcons: EarconsPort,
+                 event_bus: EventBusPort, config: Dict[str, Any]):
         self.stt = stt
         self.tts = tts
         self.agent = agent
         self.router = router
         self.memory = memory
         self.earcons = earcons
+        self.event_bus = event_bus
 
         conv_cfg = config.get("conversation", {})
         self.inactivity_timeout = conv_cfg.get("inactivity_timeout", 30.0)
@@ -77,7 +80,16 @@ class ConversationManager:
             technical_log("conversation", "inactivity timeout")
             return None
 
-    async def handle_goodbye(self, user_input: str, llm) -> bool:
+    async def end_conversation(self, reason: str = "goodbye"):
+        """Émet ConversationEnded et reset. L'extraction mémoire se fait en background."""
+        history_snapshot = self.history.copy()
+        await self.event_bus.emit(ConversationEnded(
+            history=history_snapshot,
+            reason=reason,
+        ))
+        self.reset()
+
+    async def handle_goodbye(self, user_input: str) -> bool:
         if not self.router.detect_goodbye(user_input):
             return False
 
@@ -85,13 +97,8 @@ class ConversationManager:
         self.earcons.play("goodbye")
         self.tts.speak(self.router.get_goodbye_response())
 
-        history_snapshot = self.history.copy()
-        await asyncio.gather(
-            self._wait_tts(),
-            self.memory.extract(history_snapshot, llm),
-        )
-
-        self.reset()
+        await self.end_conversation(reason="goodbye")
+        await self._wait_tts()
         await asyncio.sleep(2.0)
         return True
 

@@ -2,6 +2,8 @@
 Point d'entrée principal de Neo.
 """
 import asyncio
+import warnings
+
 import sounddevice as sd
 
 from neo.adapters.earcons import EarconPlayer
@@ -12,10 +14,15 @@ from neo.adapters.ollama import LLM
 from neo.adapters.wake import WakeWord
 from neo.domain.agent import Agent
 from neo.domain.conversation import ConversationManager
+from neo.domain.events import ConversationEnded
 from neo.infra.config import ConfigManager
 from neo.infra.router import Router
+from neo.runtime.background import BackgroundRunner
+from neo.runtime.event_bus import EventBus
 from neo.shared.colors import CYAN, GREEN, RESET
 from neo.shared.logging import technical_log
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph")
 
 
 class Neo:
@@ -24,20 +31,32 @@ class Neo:
     def __init__(self):
         self.config = ConfigManager()
 
+        # runtime
+        self.background = BackgroundRunner()
+        self.event_bus = EventBus(self.background)
+
+        # adapters
         self.llm = LLM()
         self.stt = STT()
         self.tts = TTS()
         self.wake = WakeWord()
-        self.router = Router()
-        self.memory = MemoryManager()
         self.earcons = EarconPlayer()
 
+        # memory + injection LLM
+        self.memory = MemoryManager()
+        self.memory.set_llm(self.llm.llm)
+
+        # modules
+        self.router = Router()
+
+        # agent
         self.agent = Agent(
             llm=self.llm.llm,
             tools=self.router.get_all_tools(),
             system_prompt=self.llm.system_prompt
         )
 
+        # conversation
         self.conversation = ConversationManager(
             stt=self.stt,
             tts=self.tts,
@@ -45,8 +64,12 @@ class Neo:
             router=self.router,
             memory=self.memory,
             earcons=self.earcons,
+            event_bus=self.event_bus,
             config=self.config.config
         )
+
+        # subscriptions
+        self.event_bus.subscribe(ConversationEnded, self.memory.on_conversation_ended)
 
         self.wake_enabled = self.config.get("wake", "enabled", default=True)
 
@@ -58,7 +81,7 @@ class Neo:
             technical_log("wake", "wake word disabled, conversation always active")
 
     async def handle_user_input(self, user_input: str) -> bool:
-        if await self.conversation.handle_goodbye(user_input, self.llm.llm):
+        if await self.conversation.handle_goodbye(user_input):
             return True
 
         response = await self.conversation.process_input(user_input)
@@ -85,8 +108,7 @@ class Neo:
 
                 if user_input is None:
                     print()
-                    await self.memory.extract(self.conversation.history.copy(), self.llm.llm)
-                    self.conversation.reset()
+                    await self.conversation.end_conversation(reason="timeout")
                     await asyncio.sleep(0.5)
                     continue
 
@@ -106,6 +128,7 @@ class Neo:
                 print(f"\n{CYAN}stopping...")
                 self.tts.stop()
                 sd.stop()
+                await self.background.shutdown()
                 break
 
     def run(self):

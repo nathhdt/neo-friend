@@ -3,7 +3,7 @@ Ports : interfaces abstraites du domaine.
 Le domaine dépend de ces contrats, jamais des implémentations concrètes.
 """
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import Any, Callable, Coroutine, List, Dict
 
 
 class STTPort(ABC):
@@ -49,3 +49,11 @@ class VADPort(ABC):
 class EarconsPort(ABC):
     @abstractmethod
     def play(self, name: str): ...
+
+
+class EventBusPort(ABC):
+    @abstractmethod
+    def subscribe(self, event_type: type, handler: Callable[..., Coroutine]): ...
+
+    @abstractmethod
+    async def emit(self, event: Any): ...

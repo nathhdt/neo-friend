@@ -17,6 +17,7 @@ from pathlib import Path
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict
 
+from neo.domain.events import ConversationEnded
 from neo.domain.ports import MemoryPort
 from neo.infra.config import ConfigManager
 from neo.shared.logging import step_start, step_ok, step_error, technical_log
@@ -71,6 +72,7 @@ class _SilentStderr:
 class MemoryManager(MemoryPort):
 
     def __init__(self):
+        self._llm = None
         config = ConfigManager()
         mem_cfg = config.get("memory") or {}
 
@@ -118,6 +120,17 @@ class MemoryManager(MemoryPort):
         except Exception as e:
             step_error("memory", f"failed to open LanceDB: {e}")
             raise
+
+    def set_llm(self, llm):
+        """Injecte la référence LLM pour l'extraction mémoire."""
+        self._llm = llm
+
+    async def on_conversation_ended(self, event: ConversationEnded):
+        """Handler événement : extrait les faits mémorables en background."""
+        if self._llm is None:
+            technical_log("memory", "skip extract: no LLM configured")
+            return
+        await self.extract(event.history, self._llm)
 
     def _init_table(self):
         if "memories" in self.db.table_names():
