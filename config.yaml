@@ -63,3 +63,14 @@ memory:
   db_path: data/memory
   recall_top_k: 5
   dedup_threshold: 0.95
+
+schedules:
+  - id: morning_briefing_prep
+    module: alarm
+    action: prepare_briefing
+    cron: "14 20 * * 1-5"
+
+  - id: morning_alarm
+    module: alarm
+    action: ring
+    cron: "16 20 * * 1-5"

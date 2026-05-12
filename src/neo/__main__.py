@@ -52,7 +52,7 @@ class Neo:
         self.memory.set_llm(self.llm.llm)
 
         # modules
-        self.router = Router()
+        self.router = Router(event_bus=self.event_bus, background=self.background)
 
         # agent
         self.agent = Agent(
@@ -80,7 +80,7 @@ class Neo:
 
     async def wait_for_wake_word(self):
         if self.wake_enabled:
-            self.wake.listen()
+            await asyncio.to_thread(self.wake.listen)
             technical_log("wake", "wake word detected")
         else:
             technical_log("wake", "wake word disabled, conversation always active")

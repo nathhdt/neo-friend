@@ -1,0 +1,7 @@
+alarm:
+  sound: Funk.aiff
+  # tools appelés pour construire le briefing matinal
+  briefing_tools:
+    - get_weather
+    - list_today_events
+    - check_email_count
