@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any, List
 
 from neo.domain.events import ConversationEnded
 from neo.domain.ports import STTPort, TTSPort, MemoryPort, EarconsPort, EventBusPort
-from neo.shared.colors import CYAN
+from neo.shared.colors import BLUE
 from neo.shared.logging import technical_log
 from neo.shared.text import stream_llm_to_tts
 
@@ -105,7 +105,7 @@ class ConversationManager:
     async def process_input(self, user_input: str) -> str:
         memory_context = self.memory.recall(user_input)
 
-        prefix = f"{CYAN}neo > "
+        prefix = f"{BLUE}neo > "
         print(prefix, end="", flush=True)
 
         return await stream_llm_to_tts(

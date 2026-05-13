@@ -11,13 +11,13 @@ from langgraph.graph import StateGraph, MessagesState, END
 from typing import Literal, List, Dict
 
 from neo.infra.config import ConfigManager
-from neo.shared.colors import CYAN, RESET
+from neo.shared.colors import BLUE, RESET
 from neo.shared.logging import step_start, step_ok, step_error
 
 
 def _tool_log(message: str):
     now = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-    print(f"\r\033[K{CYAN}{now} - [agent] {message}{RESET}")
+    print(f"\r\033[K{BLUE}{now} - [agent] {message}{RESET}")
 
 
 class Agent:

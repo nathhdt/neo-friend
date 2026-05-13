@@ -20,7 +20,7 @@ from neo.infra.router import Router
 from neo.runtime.background import BackgroundRunner
 from neo.runtime.event_bus import EventBus
 from neo.runtime.scheduler import Scheduler
-from neo.shared.colors import CYAN, GREEN, RESET
+from neo.shared.colors import BLUE, PINK, RESET
 from neo.shared.logging import technical_log
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph")
@@ -104,7 +104,7 @@ class Neo:
 
                 await self.conversation.wait_for_tts()
 
-                print(f"\n{GREEN}you > ", end="", flush=True)
+                print(f"\n{PINK}you > ", end="", flush=True)
 
                 self.earcons.play("listening")
                 await asyncio.sleep(0.3)
@@ -117,7 +117,7 @@ class Neo:
                     await asyncio.sleep(0.5)
                     continue
 
-                print(f"{GREEN}{user_input}{RESET}\n")
+                print(f"{PINK}{user_input}{RESET}\n")
 
                 if not user_input:
                     continue
@@ -139,7 +139,7 @@ class Neo:
         try:
             await self.conversation_loop()
         finally:
-            print(f"\n{CYAN}stopping...{RESET}")
+            print(f"\n{BLUE}stopping...{RESET}")
             scheduler_task.cancel()
             try:
                 await scheduler_task

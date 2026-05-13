@@ -1,7 +1,7 @@
 import asyncio
 import re
 
-from neo.shared.colors import CYAN, BOLD, BOLD_RESET, ITALIC, ITALIC_RESET, RESET
+from neo.shared.colors import BLUE, BOLD, BOLD_RESET, ITALIC, ITALIC_RESET, RESET
 
 
 def extract_sentence(buffer: str):
@@ -34,7 +34,7 @@ def markdown_to_ansi(text: str) -> str:
     return text
 
 
-async def _thinking_animation(prefix: str, stop_event: asyncio.Event, color=CYAN):
+async def _thinking_animation(prefix: str, stop_event: asyncio.Event, color=BLUE):
     dots = [".  ", ".. ", "..."]
     i = 0
     while not stop_event.is_set():
@@ -48,7 +48,7 @@ async def _thinking_animation(prefix: str, stop_event: asyncio.Event, color=CYAN
     print("\r\033[K", end="", flush=True)
 
 
-async def stream_llm_to_tts(llm_generator, tts, prefix, color=CYAN):
+async def stream_llm_to_tts(llm_generator, tts, prefix, color=BLUE):
     buffer = ""
     full_response = ""
     stop_animation = asyncio.Event()
